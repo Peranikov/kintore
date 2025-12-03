@@ -48,6 +48,13 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     }, 0)
   }
 
+  function handleNameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      weightRefs.current[0]?.focus()
+    }
+  }
+
   function handleWeightKeyDown(e: React.KeyboardEvent, index: number) {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -88,6 +95,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleNameKeyDown}
           list="exercise-names"
           className="w-full border rounded px-3 py-2"
           placeholder="種目名を入力..."
