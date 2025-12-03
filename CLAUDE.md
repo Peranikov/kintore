@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 筋トレログPWAアプリ。ローカル（IndexedDB）にトレーニング記録を保存し、オフラインでも動作する。
 
+## Development Workflow
+
+1. 開発を始める前に `TODO.md` を確認し、現在のタスク状況を把握する
+2. 新しいタスクに着手する際は `TODO.md` を更新してからコードを書く
+3. タスク完了時は `TODO.md` のチェックボックスを更新する
+4. バグや改善点を発見したら `TODO.md` に追記する
+5. 作業完了後は必ず `npm run lint && npm run build` で検証する
+
 ## Commands
 
 ```bash
