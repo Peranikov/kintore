@@ -11,30 +11,31 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'トレーニングログ',
-        short_name: 'TrainingLog',
+        short_name: '筋トレログ',
         description: '筋トレの記録を管理するアプリ',
         theme_color: '#3b82f6',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'web-app-manifest-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'maskable',
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'web-app-manifest-512x512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'maskable',
           },
           {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
+            src: 'favicon-96x96.png',
+            sizes: '96x96',
             type: 'image/png',
-            purpose: 'any maskable',
           },
         ],
       },
