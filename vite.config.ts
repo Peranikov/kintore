@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'トレーニングログ',
-        short_name: '筋トレログ',
+        name: 'Kintore',
+        short_name: 'Kintore',
         description: '筋トレの記録を管理するアプリ',
         theme_color: '#3b82f6',
         background_color: '#ffffff',
