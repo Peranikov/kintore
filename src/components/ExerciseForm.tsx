@@ -33,6 +33,12 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     setSets(sets.filter((_, i) => i !== index))
   }
 
+  function handleClearSet(index: number) {
+    const newSets = [...sets]
+    newSets[index] = { weight: 0, reps: 0 }
+    setSets(newSets)
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
@@ -96,6 +102,13 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
                 min="1"
               />
               <span className="text-sm">回</span>
+              <button
+                type="button"
+                onClick={() => handleClearSet(index)}
+                className="text-gray-500 text-sm hover:text-gray-700"
+              >
+                クリア
+              </button>
               {sets.length > 1 && (
                 <button
                   type="button"
