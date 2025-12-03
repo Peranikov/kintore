@@ -69,6 +69,10 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     }
   }
 
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.select()
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
@@ -96,6 +100,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleNameKeyDown}
+          onFocus={handleFocus}
           list="exercise-names"
           className="w-full border rounded px-3 py-2"
           placeholder="種目名を入力..."
@@ -119,6 +124,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
                 value={set.weight || ''}
                 onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
                 onKeyDown={(e) => handleWeightKeyDown(e, index)}
+                onFocus={handleFocus}
                 className="w-20 border rounded px-2 py-1 text-right"
                 placeholder="0"
                 min="0"
@@ -132,6 +138,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
                 value={set.reps || ''}
                 onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
                 onKeyDown={(e) => handleRepsKeyDown(e, index)}
+                onFocus={handleFocus}
                 className="w-16 border rounded px-2 py-1 text-right"
                 placeholder="0"
                 min="1"
