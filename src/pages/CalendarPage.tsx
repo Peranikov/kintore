@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
+import type { WorkoutLog, Exercise } from '../types'
+import { ExerciseForm } from '../components/ExerciseForm'
 
 function getMonthDays(year: number, month: number): (number | null)[] {
   const firstDay = new Date(year, month, 1).getDay()
@@ -22,7 +24,10 @@ function formatDate(year: number, month: number, day: number): string {
 }
 
 export function CalendarPage() {
+  const navigate = useNavigate()
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [isAddingExercise, setIsAddingExercise] = useState(false)
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
@@ -51,6 +56,48 @@ export function CalendarPage() {
   function goToToday() {
     setCurrentDate(new Date())
   }
+
+  function handleDateClick(dateStr: string, log: WorkoutLog | undefined) {
+    if (log) {
+      navigate(`/log/${log.id}`)
+    } else {
+      setSelectedDate(dateStr)
+      setIsAddingExercise(false)
+    }
+  }
+
+  async function handleAddExercise(exercise: Exercise) {
+    if (!selectedDate) return
+    const now = Date.now()
+
+    const existingLog = await db.workoutLogs.where('date').equals(selectedDate).first()
+
+    if (existingLog) {
+      const updated: WorkoutLog = {
+        ...existingLog,
+        exercises: [...existingLog.exercises, exercise],
+        updatedAt: now,
+      }
+      await db.workoutLogs.put(updated)
+    } else {
+      const newLog: WorkoutLog = {
+        date: selectedDate,
+        exercises: [exercise],
+        createdAt: now,
+        updatedAt: now,
+      }
+      await db.workoutLogs.add(newLog)
+    }
+
+    setIsAddingExercise(false)
+  }
+
+  function closeModal() {
+    setSelectedDate(null)
+    setIsAddingExercise(false)
+  }
+
+  const selectedLog = selectedDate ? logs?.find(l => l.date === selectedDate) : null
 
   const days = getMonthDays(year, month)
   const today = new Date()
@@ -115,24 +162,22 @@ export function CalendarPage() {
               const log = logs?.find(l => l.date === dateStr)
 
               return (
-                <Link
+                <button
                   key={day}
-                  to={log ? `/log/${log.id}` : '#'}
+                  type="button"
+                  onClick={() => handleDateClick(dateStr, log)}
                   className={`
                     h-10 flex flex-col items-center justify-center rounded relative
                     ${isToday ? 'bg-blue-100 font-bold' : ''}
                     ${hasLog ? 'hover:bg-green-100' : 'hover:bg-gray-50'}
                     ${dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : ''}
                   `}
-                  onClick={(e) => {
-                    if (!log) e.preventDefault()
-                  }}
                 >
                   <span className="text-sm">{day}</span>
                   {hasLog && (
                     <span className="absolute bottom-1 w-1.5 h-1.5 bg-green-500 rounded-full" />
                   )}
-                </Link>
+                </button>
               )
             })}
           </div>
@@ -165,6 +210,63 @@ export function CalendarPage() {
           )}
         </section>
       </main>
+
+      {selectedDate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold">{selectedDate}</h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-4">
+              {selectedLog && selectedLog.exercises.length > 0 ? (
+                <div className="mb-4">
+                  <h3 className="font-medium mb-2">記録済みの種目</h3>
+                  <ul className="space-y-2">
+                    {selectedLog.exercises.map((ex) => (
+                      <li key={ex.id} className="text-sm text-gray-600">
+                        {ex.name}: {ex.sets.map(s => `${s.weight}kg×${s.reps}`).join(', ')}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-gray-500 mb-4">この日の記録はありません</p>
+              )}
+
+              {isAddingExercise ? (
+                <ExerciseForm
+                  onSubmit={handleAddExercise}
+                  onCancel={() => setIsAddingExercise(false)}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setIsAddingExercise(true)}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    種目を追加
+                  </button>
+                  {selectedLog && (
+                    <Link
+                      to={`/log/${selectedLog.id}`}
+                      className="block w-full text-center bg-gray-200 py-2 rounded-lg hover:bg-gray-300"
+                    >
+                      詳細を見る
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
         <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
