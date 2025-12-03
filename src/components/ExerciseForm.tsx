@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { db } from '../db'
 import type { Exercise, Set, ExerciseMaster } from '../types'
 
@@ -12,6 +12,8 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const [name, setName] = useState(initialExercise?.name || '')
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
   const [masterExercises, setMasterExercises] = useState<ExerciseMaster[]>([])
+  const weightRefs = useRef<(HTMLInputElement | null)[]>([])
+  const repsRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
@@ -25,7 +27,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
 
   function handleAddSet() {
     const lastSet = sets[sets.length - 1]
-    setSets([...sets, { weight: lastSet?.weight || 0, reps: lastSet?.reps || 0 }])
+    const newSets = [...sets, { weight: lastSet?.weight || 0, reps: lastSet?.reps || 0 }]
+    setSets(newSets)
+    setTimeout(() => {
+      weightRefs.current[newSets.length - 1]?.focus()
+    }, 0)
   }
 
   function handleRemoveSet(index: number) {
@@ -37,6 +43,23 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     const newSets = [...sets]
     newSets[index] = { weight: 0, reps: 0 }
     setSets(newSets)
+    setTimeout(() => {
+      weightRefs.current[index]?.focus()
+    }, 0)
+  }
+
+  function handleWeightKeyDown(e: React.KeyboardEvent, index: number) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      repsRefs.current[index]?.focus()
+    }
+  }
+
+  function handleRepsKeyDown(e: React.KeyboardEvent, _index: number) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAddSet()
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -83,9 +106,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
             <div key={index} className="flex items-center gap-2">
               <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
               <input
+                ref={(el) => { weightRefs.current[index] = el }}
                 type="number"
                 value={set.weight || ''}
                 onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
+                onKeyDown={(e) => handleWeightKeyDown(e, index)}
                 className="w-20 border rounded px-2 py-1 text-right"
                 placeholder="0"
                 min="0"
@@ -94,9 +119,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
               <span className="text-sm">kg</span>
               <span className="text-gray-400">×</span>
               <input
+                ref={(el) => { repsRefs.current[index] = el }}
                 type="number"
                 value={set.reps || ''}
                 onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
+                onKeyDown={(e) => handleRepsKeyDown(e, index)}
                 className="w-16 border rounded px-2 py-1 text-right"
                 placeholder="0"
                 min="1"
