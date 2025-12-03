@@ -83,6 +83,52 @@ export function LogDetailPage() {
     return sets.map(s => `${s.weight}kg×${s.reps}`).join(', ')
   }
 
+  function generateExportText(): string {
+    if (!log) return ''
+
+    const lines: string[] = []
+    lines.push(`# トレーニング記録 ${log.date}`)
+    lines.push('')
+
+    log.exercises.forEach((ex) => {
+      lines.push(`## ${ex.name}`)
+      ex.sets.forEach((set, i) => {
+        lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+      })
+      lines.push('')
+    })
+
+    if (log.memo) {
+      lines.push('## メモ')
+      lines.push(log.memo)
+    }
+
+    return lines.join('\n')
+  }
+
+  async function handleExport() {
+    const text = generateExportText()
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `トレーニング記録 ${log?.date}`,
+          text,
+        })
+      } catch {
+        copyToClipboard(text)
+      }
+    } else {
+      copyToClipboard(text)
+    }
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('クリップボードにコピーしました')
+    })
+  }
+
   if (!log) {
     return (
       <div className="min-h-screen bg-gray-100 p-4">
@@ -166,6 +212,15 @@ export function LogDetailPage() {
           )}
         </section>
 
+        <section className="mb-6">
+          <button
+            onClick={handleExport}
+            className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
+          >
+            テキストをコピー
+          </button>
+        </section>
+
         <section>
           <h2 className="text-lg font-semibold mb-3">メモ</h2>
           <div className="bg-white rounded-lg shadow p-4">
@@ -216,8 +271,11 @@ export function LogDetailPage() {
         <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
           ホーム
         </Link>
+        <Link to="/calendar" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
+          カレンダー
+        </Link>
         <Link to="/exercises" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          種目マスタ
+          種目
         </Link>
       </nav>
     </div>

@@ -140,8 +140,11 @@ export function ExerciseMasterPage() {
         <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
           ホーム
         </Link>
+        <Link to="/calendar" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
+          カレンダー
+        </Link>
         <Link to="/exercises" className="flex-1 py-3 text-center text-blue-600 font-medium">
-          種目マスタ
+          種目
         </Link>
       </nav>
     </div>

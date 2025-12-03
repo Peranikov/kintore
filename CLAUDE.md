@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. 新しいタスクに着手する際は `TODO.md` を更新してからコードを書く
 3. タスク完了時は `TODO.md` のチェックボックスを更新する
 4. バグや改善点を発見したら `TODO.md` に追記する
-5. 作業完了後は必ず `npm run lint && npm run build` で検証する
+5. 新機能を追加した場合は `docs/SPEC.md` も更新する
+6. 作業完了後は必ず `npm run lint && npm run build` で検証する
 
 ## Commands
 
