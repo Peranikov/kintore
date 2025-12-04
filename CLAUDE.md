@@ -32,18 +32,19 @@ npm run preview  # 本番ビルドのプレビュー
 - Vite 7
 - Dexie.js (IndexedDB wrapper)
 - vite-plugin-pwa (Service Worker)
+- Recharts (グラフ描画)
 
 ### Data Layer
-データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化：
+データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 2）：
 - `workoutLogs` - トレーニングログ（日付、種目、セット情報）
-- `exerciseMasters` - 種目マスタ
+- `exerciseMasters` - 種目マスタ（自重トレーニングフラグ含む）
 
 ### Type Definitions
 `src/types/index.ts` にデータモデルを定義：
 - `WorkoutLog` - 1日分のトレーニング記録
 - `Exercise` - 種目（複数セットを持つ）
 - `Set` - 重量(kg)と回数
-- `ExerciseMaster` - 登録済み種目
+- `ExerciseMaster` - 登録済み種目（`isBodyweight`フラグで自重トレーニングを識別）
 
 ## Specification
 
