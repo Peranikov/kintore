@@ -11,6 +11,11 @@ db.version(1).stores({
   exerciseMasters: '++id, name, createdAt',
 })
 
+db.version(2).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+})
+
 const PRESET_EXERCISES = [
   // 筋トレマシン
   'チェストプレス',

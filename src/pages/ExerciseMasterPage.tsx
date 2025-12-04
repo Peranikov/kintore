@@ -6,8 +6,10 @@ import { BottomNav } from '../components/BottomNav'
 
 export function ExerciseMasterPage() {
   const [newName, setNewName] = useState('')
+  const [newIsBodyweight, setNewIsBodyweight] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [editingIsBodyweight, setEditingIsBodyweight] = useState(false)
 
   const exercises = useLiveQuery(
     () => db.exerciseMasters.orderBy('name').toArray(),
@@ -26,9 +28,11 @@ export function ExerciseMasterPage() {
 
     await db.exerciseMasters.add({
       name: newName.trim(),
+      isBodyweight: newIsBodyweight,
       createdAt: Date.now(),
     })
     setNewName('')
+    setNewIsBodyweight(false)
   }
 
   async function handleUpdate(id: number) {
@@ -40,9 +44,10 @@ export function ExerciseMasterPage() {
       return
     }
 
-    await db.exerciseMasters.update(id, { name: editingName.trim() })
+    await db.exerciseMasters.update(id, { name: editingName.trim(), isBodyweight: editingIsBodyweight })
     setEditingId(null)
     setEditingName('')
+    setEditingIsBodyweight(false)
   }
 
   async function handleDelete(id: number) {
@@ -58,8 +63,8 @@ export function ExerciseMasterPage() {
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
-        <form onSubmit={handleAdd} className="mb-6">
-          <div className="flex gap-2">
+        <form onSubmit={handleAdd} className="mb-6 bg-white rounded-lg shadow p-4">
+          <div className="flex gap-2 mb-2">
             <input
               type="text"
               value={newName}
@@ -74,6 +79,15 @@ export function ExerciseMasterPage() {
               追加
             </button>
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={newIsBodyweight}
+              onChange={(e) => setNewIsBodyweight(e.target.checked)}
+              className="rounded"
+            />
+            自重トレーニング（重量入力なし）
+          </label>
         </form>
 
         <section>
@@ -83,38 +97,56 @@ export function ExerciseMasterPage() {
               {exercises.map((ex) => (
                 <li key={ex.id} className="p-4">
                   {editingId === ex.id ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        className="flex-1 border rounded px-2 py-1"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleUpdate(ex.id!)}
-                        className="text-blue-600 text-sm hover:underline"
-                      >
-                        保存
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingId(null)
-                          setEditingName('')
-                        }}
-                        className="text-gray-600 text-sm hover:underline"
-                      >
-                        キャンセル
-                      </button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="flex-1 border rounded px-2 py-1"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleUpdate(ex.id!)}
+                          className="text-blue-600 text-sm hover:underline"
+                        >
+                          保存
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingId(null)
+                            setEditingName('')
+                            setEditingIsBodyweight(false)
+                          }}
+                          className="text-gray-600 text-sm hover:underline"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={editingIsBodyweight}
+                          onChange={(e) => setEditingIsBodyweight(e.target.checked)}
+                          className="rounded"
+                        />
+                        自重トレーニング
+                      </label>
                     </div>
                   ) : (
                     <div className="flex justify-between items-center">
-                      <span>{ex.name}</span>
+                      <div>
+                        <span>{ex.name}</span>
+                        {ex.isBodyweight && (
+                          <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">自重</span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
                             setEditingId(ex.id!)
                             setEditingName(ex.name)
+                            setEditingIsBodyweight(ex.isBodyweight || false)
                           }}
                           className="text-blue-600 text-sm hover:underline"
                         >

@@ -18,12 +18,22 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
   const [masterExercises, setMasterExercises] = useState<ExerciseMaster[]>([])
   const [lastRecord, setLastRecord] = useState<LastRecord | null>(null)
+  const [isBodyweight, setIsBodyweight] = useState(false)
   const weightRefs = useRef<(HTMLInputElement | null)[]>([])
   const repsRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
   }, [])
+
+  useEffect(() => {
+    if (!name.trim()) {
+      setIsBodyweight(false)
+      return
+    }
+    const master = masterExercises.find((ex) => ex.name === name.trim())
+    setIsBodyweight(master?.isBodyweight || false)
+  }, [name, masterExercises])
 
   useEffect(() => {
     if (!name.trim() || initialExercise) {
@@ -78,7 +88,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   function handleNameKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      weightRefs.current[0]?.focus()
+      if (isBodyweight) {
+        repsRefs.current[0]?.focus()
+      } else {
+        weightRefs.current[0]?.focus()
+      }
     }
   }
 
@@ -106,9 +120,16 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
       alert('種目名を入力してください')
       return
     }
-    if (sets.some(s => s.weight < 0 || s.reps <= 0)) {
-      alert('重量と回数を正しく入力してください')
-      return
+    if (isBodyweight) {
+      if (sets.some(s => s.reps <= 0)) {
+        alert('回数を正しく入力してください')
+        return
+      }
+    } else {
+      if (sets.some(s => s.weight < 0 || s.reps <= 0)) {
+        alert('重量と回数を正しく入力してください')
+        return
+      }
     }
 
     onSubmit({
@@ -157,7 +178,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
             {lastRecord.sets.map((s, i) => (
               <span key={i}>
                 {i > 0 && ' / '}
-                {s.weight}kg×{s.reps}
+                {isBodyweight ? `${s.reps}回` : `${s.weight}kg×${s.reps}`}
               </span>
             ))}
           </div>
@@ -170,20 +191,24 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
           {sets.map((set, index) => (
             <div key={index} className="flex items-center gap-2">
               <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
-              <input
-                ref={(el) => { weightRefs.current[index] = el }}
-                type="number"
-                value={set.weight || ''}
-                onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
-                onKeyDown={(e) => handleWeightKeyDown(e, index)}
-                onFocus={handleFocus}
-                className="w-20 border rounded px-2 py-1 text-right"
-                placeholder="0"
-                min="0"
-                step="0.5"
-              />
-              <span className="text-sm">kg</span>
-              <span className="text-gray-400">×</span>
+              {!isBodyweight && (
+                <>
+                  <input
+                    ref={(el) => { weightRefs.current[index] = el }}
+                    type="number"
+                    value={set.weight || ''}
+                    onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
+                    onKeyDown={(e) => handleWeightKeyDown(e, index)}
+                    onFocus={handleFocus}
+                    className="w-20 border rounded px-2 py-1 text-right"
+                    placeholder="0"
+                    min="0"
+                    step="0.5"
+                  />
+                  <span className="text-sm">kg</span>
+                  <span className="text-gray-400">×</span>
+                </>
+              )}
               <input
                 ref={(el) => { repsRefs.current[index] = el }}
                 type="number"

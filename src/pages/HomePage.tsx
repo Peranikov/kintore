@@ -32,6 +32,16 @@ export function HomePage() {
     [today]
   )
 
+  const exerciseMasters = useLiveQuery(
+    () => db.exerciseMasters.toArray(),
+    []
+  )
+
+  function isBodyweightExercise(name: string): boolean {
+    const master = exerciseMasters?.find((m) => m.name === name)
+    return master?.isBodyweight || false
+  }
+
   async function handleAddExercise(exercise: Exercise) {
     const now = Date.now()
 
@@ -55,7 +65,10 @@ export function HomePage() {
     setIsAddingExercise(false)
   }
 
-  function formatSets(sets: Set[]): string {
+  function formatSets(sets: Set[], isBodyweight: boolean): string {
+    if (isBodyweight) {
+      return sets.map(s => `${s.reps}回`).join(', ')
+    }
     return sets.map(s => `${s.weight}kg×${s.reps}`).join(', ')
   }
 
@@ -74,7 +87,7 @@ export function HomePage() {
                 {todayLog.exercises.map((ex) => (
                   <li key={ex.id} className="border-b pb-2 last:border-b-0">
                     <div className="font-medium">{ex.name}</div>
-                    <div className="text-sm text-gray-600">{formatSets(ex.sets)}</div>
+                    <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name))}</div>
                   </li>
                 ))}
               </ul>

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
-import type { WorkoutLog } from '../types'
+import type { WorkoutLog, ExerciseMaster } from '../types'
 import { BottomNav } from '../components/BottomNav'
 
 function formatDateString(date: Date): string {
@@ -19,8 +19,18 @@ function getMonthsAgo(months: number): string {
   return formatDateString(new Date(date.getFullYear(), date.getMonth(), 1))
 }
 
-function generateExportText(logs: WorkoutLog[], startDate: string, endDate: string): string {
+function generateExportText(
+  logs: WorkoutLog[],
+  startDate: string,
+  endDate: string,
+  exerciseMasters: ExerciseMaster[]
+): string {
   if (logs.length === 0) return ''
+
+  function isBodyweightExercise(name: string): boolean {
+    const master = exerciseMasters.find((m) => m.name === name)
+    return master?.isBodyweight || false
+  }
 
   const lines: string[] = []
   lines.push(`# トレーニング記録 ${startDate} 〜 ${endDate}`)
@@ -33,9 +43,14 @@ function generateExportText(logs: WorkoutLog[], startDate: string, endDate: stri
     lines.push('')
 
     log.exercises.forEach((ex) => {
+      const bodyweight = isBodyweightExercise(ex.name)
       lines.push(`### ${ex.name}`)
       ex.sets.forEach((set, i) => {
-        lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+        if (bodyweight) {
+          lines.push(`- ${i + 1}セット目: ${set.reps}回`)
+        } else {
+          lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+        }
       })
       lines.push('')
     })
@@ -70,10 +85,15 @@ export function ExportPage() {
     [startDate, endDate]
   )
 
+  const exerciseMasters = useLiveQuery(
+    () => db.exerciseMasters.toArray(),
+    []
+  )
+
   const exportText = useMemo(() => {
-    if (!logs || logs.length === 0) return ''
-    return generateExportText(logs, startDate, endDate)
-  }, [logs, startDate, endDate])
+    if (!logs || logs.length === 0 || !exerciseMasters) return ''
+    return generateExportText(logs, startDate, endDate, exerciseMasters)
+  }, [logs, startDate, endDate, exerciseMasters])
 
   function handleQuickSelect(months: number) {
     if (months === 0) {

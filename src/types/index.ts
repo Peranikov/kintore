@@ -21,5 +21,6 @@ export interface WorkoutLog {
 export interface ExerciseMaster {
   id?: number
   name: string
+  isBodyweight?: boolean
   createdAt: number
 }
