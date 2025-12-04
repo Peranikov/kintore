@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from 'recharts'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
@@ -16,12 +17,18 @@ interface ChartData {
   date: string
   maxWeight: number
   totalVolume: number
+  estimated1RM: number
 }
 
 interface ExerciseChartData {
   name: string
   lastDate: string
   data: ChartData[]
+}
+
+function calculate1RM(weight: number, reps: number): number {
+  if (reps === 0) return 0
+  return Math.round(weight * (1 + reps / 30) * 10) / 10
 }
 
 export function GraphPage() {
@@ -36,7 +43,7 @@ export function GraphPage() {
   const exerciseCharts = useMemo<ExerciseChartData[]>(() => {
     if (!logs) return []
 
-    const exerciseDataMap = new Map<string, Map<string, { maxWeight: number; totalVolume: number }>>()
+    const exerciseDataMap = new Map<string, Map<string, { maxWeight: number; totalVolume: number; estimated1RM: number }>>()
 
     logs.forEach((log) => {
       log.exercises.forEach((ex) => {
@@ -47,15 +54,17 @@ export function GraphPage() {
 
         const maxWeight = Math.max(...ex.sets.map((s) => s.weight))
         const totalVolume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0)
+        const max1RM = Math.max(...ex.sets.map((s) => calculate1RM(s.weight, s.reps)))
 
         const existing = dateMap.get(log.date)
         if (existing) {
           dateMap.set(log.date, {
             maxWeight: Math.max(existing.maxWeight, maxWeight),
             totalVolume: existing.totalVolume + totalVolume,
+            estimated1RM: Math.max(existing.estimated1RM, max1RM),
           })
         } else {
-          dateMap.set(log.date, { maxWeight, totalVolume })
+          dateMap.set(log.date, { maxWeight, totalVolume, estimated1RM: max1RM })
         }
       })
     })
@@ -68,6 +77,7 @@ export function GraphPage() {
           date,
           maxWeight: data.maxWeight,
           totalVolume: data.totalVolume,
+          estimated1RM: data.estimated1RM,
         }))
         .sort((a, b) => a.date.localeCompare(b.date))
 
@@ -98,7 +108,7 @@ export function GraphPage() {
             {exerciseCharts.map((exercise) => (
               <div key={exercise.name} className="bg-white rounded-lg shadow p-4">
                 <h2 className="text-base font-semibold mb-3">{exercise.name}</h2>
-                <div className="h-48">
+                <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={exercise.data}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -111,36 +121,84 @@ export function GraphPage() {
                         }}
                       />
                       <YAxis
-                        tick={{ fontSize: 11 }}
+                        yAxisId="left"
+                        tick={{ fontSize: 10 }}
                         tickFormatter={(value) => `${value}`}
-                        width={35}
+                        width={40}
                         unit="kg"
                       />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        width={35}
+                      />
                       <Tooltip
-                        formatter={(value: number) => [`${value}kg`, '最大重量']}
+                        formatter={(value: number, name: string) => {
+                          if (name === 'maxWeight') return [`${value}kg`, '最大重量']
+                          if (name === 'totalVolume') return [`${value.toLocaleString()}kg`, '総ボリューム']
+                          if (name === 'estimated1RM') return [`${value}kg`, '推定1RM']
+                          return [value, name]
+                        }}
                         labelFormatter={(label) => label}
                       />
+                      <Legend
+                        formatter={(value) => {
+                          if (value === 'maxWeight') return '最大重量'
+                          if (value === 'totalVolume') return '総ボリューム'
+                          if (value === 'estimated1RM') return '推定1RM'
+                          return value
+                        }}
+                        wrapperStyle={{ fontSize: '12px' }}
+                      />
                       <Line
+                        yAxisId="left"
                         type="monotone"
                         dataKey="maxWeight"
                         stroke="#2563eb"
                         strokeWidth={2}
-                        dot={{ fill: '#2563eb', r: 3 }}
-                        activeDot={{ r: 5 }}
+                        dot={{ fill: '#2563eb', r: 2 }}
+                        activeDot={{ r: 4 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="totalVolume"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={{ fill: '#10b981', r: 2 }}
+                        activeDot={{ r: 4 }}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="estimated1RM"
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ fill: '#f59e0b', r: 2 }}
+                        activeDot={{ r: 4 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-3 pt-3 border-t">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>最新: {exercise.data[exercise.data.length - 1].date}</span>
-                    <span className="font-medium text-gray-900">
-                      {exercise.data[exercise.data.length - 1].maxWeight}kg
-                    </span>
+                <div className="mt-3 pt-3 border-t space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">最新: {exercise.data[exercise.data.length - 1].date}</span>
+                    <span className="text-gray-600">記録数: {exercise.data.length}回</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>記録数</span>
-                    <span>{exercise.data.length}回</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-600">最大重量</span>
+                    <span className="font-medium">{exercise.data[exercise.data.length - 1].maxWeight}kg</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-amber-600">推定1RM</span>
+                    <span className="font-medium">{exercise.data[exercise.data.length - 1].estimated1RM}kg</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-600">総ボリューム</span>
+                    <span className="font-medium">{exercise.data[exercise.data.length - 1].totalVolume.toLocaleString()}kg</span>
                   </div>
                 </div>
               </div>
