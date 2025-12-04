@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
+import { BottomNav } from '../components/BottomNav'
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
@@ -59,7 +60,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 pb-20">
       <header className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-bold">Kintore</h1>
       </header>
@@ -130,17 +131,7 @@ export function HomePage() {
         </section>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
-        <Link to="/" className="flex-1 py-3 text-center text-blue-600 font-medium">
-          ホーム
-        </Link>
-        <Link to="/calendar" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          カレンダー
-        </Link>
-        <Link to="/exercises" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          種目
-        </Link>
-      </nav>
+      <BottomNav current="home" />
     </div>
   )
 }

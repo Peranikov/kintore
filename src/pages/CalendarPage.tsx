@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { WorkoutLog, Exercise } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
+import { BottomNav } from '../components/BottomNav'
 
 function getMonthDays(year: number, month: number): (number | null)[] {
   const firstDay = new Date(year, month, 1).getDay()
@@ -268,17 +269,7 @@ export function CalendarPage() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
-        <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          ホーム
-        </Link>
-        <Link to="/calendar" className="flex-1 py-3 text-center text-blue-600 font-medium">
-          カレンダー
-        </Link>
-        <Link to="/exercises" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          種目
-        </Link>
-      </nav>
+      <BottomNav current="calendar" />
     </div>
   )
 }

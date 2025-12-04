@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
+import { BottomNav } from '../components/BottomNav'
 
 export function ExerciseMasterPage() {
   const [newName, setNewName] = useState('')
@@ -51,7 +52,8 @@ export function ExerciseMasterPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
-      <header className="bg-blue-600 text-white p-4">
+      <header className="bg-blue-600 text-white p-4 flex items-center">
+        <Link to="/settings" className="text-white hover:opacity-80 mr-3">&larr;</Link>
         <h1 className="text-xl font-bold">種目マスタ</h1>
       </header>
 
@@ -136,17 +138,7 @@ export function ExerciseMasterPage() {
         </section>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
-        <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          ホーム
-        </Link>
-        <Link to="/calendar" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          カレンダー
-        </Link>
-        <Link to="/exercises" className="flex-1 py-3 text-center text-blue-600 font-medium">
-          種目
-        </Link>
-      </nav>
+      <BottomNav current="settings" />
     </div>
   )
 }

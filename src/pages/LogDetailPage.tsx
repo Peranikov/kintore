@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
+import { BottomNav } from '../components/BottomNav'
 
 export function LogDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -267,17 +268,7 @@ export function LogDetailPage() {
         </section>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
-        <Link to="/" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          ホーム
-        </Link>
-        <Link to="/calendar" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          カレンダー
-        </Link>
-        <Link to="/exercises" className="flex-1 py-3 text-center text-gray-600 hover:text-blue-600">
-          種目
-        </Link>
-      </nav>
+      <BottomNav current="home" />
     </div>
   )
 }
