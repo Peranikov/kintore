@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { db } from '../db'
 import type { Exercise, Set, ExerciseMaster } from '../types'
 
+interface LastRecord {
+  date: string
+  sets: Set[]
+}
+
 interface ExerciseFormProps {
   initialExercise?: Exercise
   onSubmit: (exercise: Exercise) => void
@@ -12,12 +17,34 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const [name, setName] = useState(initialExercise?.name || '')
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
   const [masterExercises, setMasterExercises] = useState<ExerciseMaster[]>([])
+  const [lastRecord, setLastRecord] = useState<LastRecord | null>(null)
   const weightRefs = useRef<(HTMLInputElement | null)[]>([])
   const repsRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
   }, [])
+
+  useEffect(() => {
+    if (!name.trim() || initialExercise) {
+      setLastRecord(null)
+      return
+    }
+
+    async function fetchLastRecord() {
+      const logs = await db.workoutLogs.orderBy('date').reverse().toArray()
+      for (const log of logs) {
+        const exercise = log.exercises.find((ex) => ex.name === name.trim())
+        if (exercise) {
+          setLastRecord({ date: log.date, sets: exercise.sets })
+          return
+        }
+      }
+      setLastRecord(null)
+    }
+
+    fetchLastRecord()
+  }, [name, initialExercise])
 
   function handleSetChange(index: number, field: keyof Set, value: number) {
     const newSets = [...sets]
@@ -112,6 +139,31 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
         </datalist>
       </div>
 
+      {lastRecord && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-blue-700 font-medium">
+              前回の記録（{lastRecord.date}）
+            </span>
+            <button
+              type="button"
+              onClick={() => setSets(lastRecord.sets.map((s) => ({ ...s })))}
+              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+            >
+              コピー
+            </button>
+          </div>
+          <div className="text-sm text-blue-600">
+            {lastRecord.sets.map((s, i) => (
+              <span key={i}>
+                {i > 0 && ' / '}
+                {s.weight}kg×{s.reps}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium mb-2">セット</label>
         <div className="space-y-2">
@@ -147,17 +199,23 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
               <button
                 type="button"
                 onClick={() => handleClearSet(index)}
-                className="text-gray-500 text-sm hover:text-gray-700"
+                className="p-1 text-gray-400 hover:text-gray-600"
+                title="クリア"
               >
-                クリア
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
               </button>
               {sets.length > 1 && (
                 <button
                   type="button"
                   onClick={() => handleRemoveSet(index)}
-                  className="text-red-500 text-sm hover:text-red-700"
+                  className="p-1 text-gray-400 hover:text-red-500"
+                  title="削除"
                 >
-                  削除
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                 </button>
               )}
             </div>
