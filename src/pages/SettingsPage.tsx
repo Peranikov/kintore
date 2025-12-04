@@ -12,12 +12,19 @@ export function SettingsPage() {
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow divide-y">
           <Link
             to="/exercises"
             className="flex items-center justify-between p-4 hover:bg-gray-50"
           >
             <span>種目マスタ</span>
+            <span className="text-gray-400">&rarr;</span>
+          </Link>
+          <Link
+            to="/export"
+            className="flex items-center justify-between p-4 hover:bg-gray-50"
+          >
+            <span>トレーニング記録のエクスポート</span>
             <span className="text-gray-400">&rarr;</span>
           </Link>
         </div>

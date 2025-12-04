@@ -5,6 +5,7 @@ import { ExerciseMasterPage } from './pages/ExerciseMasterPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { GraphPage } from './pages/GraphPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ExportPage } from './pages/ExportPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/graph" element={<GraphPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/export" element={<ExportPage />} />
       </Routes>
     </HashRouter>
   )
