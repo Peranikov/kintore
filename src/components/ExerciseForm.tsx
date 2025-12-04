@@ -114,59 +114,97 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
 
       <div>
         <label className="block text-sm font-medium mb-2">セット</label>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {sets.map((set, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
-              <input
-                ref={(el) => { weightRefs.current[index] = el }}
-                type="number"
-                value={set.weight || ''}
-                onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
-                onKeyDown={(e) => handleWeightKeyDown(e, index)}
-                onFocus={handleFocus}
-                className="w-20 border rounded px-2 py-1 text-right"
-                placeholder="0"
-                min="0"
-                step="0.5"
-              />
-              <span className="text-sm">kg</span>
-              <span className="text-gray-400">×</span>
-              <input
-                ref={(el) => { repsRefs.current[index] = el }}
-                type="number"
-                value={set.reps || ''}
-                onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
-                onKeyDown={(e) => handleRepsKeyDown(e, index)}
-                onFocus={handleFocus}
-                className="w-16 border rounded px-2 py-1 text-right"
-                placeholder="0"
-                min="1"
-              />
-              <span className="text-sm">回</span>
-              <button
-                type="button"
-                onClick={() => handleClearSet(index)}
-                className="text-gray-500 text-sm hover:text-gray-700"
-              >
-                クリア
-              </button>
-              {sets.length > 1 && (
+            <div key={index} className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-gray-600 w-16">{index + 1}セット</span>
+                <div className="flex-1" />
                 <button
                   type="button"
-                  onClick={() => handleRemoveSet(index)}
-                  className="text-red-500 text-sm hover:text-red-700"
+                  onClick={() => handleClearSet(index)}
+                  className="text-gray-500 text-xs px-2 py-1 hover:bg-gray-200 rounded"
                 >
-                  削除
+                  クリア
                 </button>
-              )}
+                {sets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSet(index)}
+                    className="text-red-500 text-xs px-2 py-1 hover:bg-red-100 rounded"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={(el) => { weightRefs.current[index] = el }}
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*\.?[0-9]*"
+                      value={set.weight || ''}
+                      onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value) || 0)}
+                      onKeyDown={(e) => handleWeightKeyDown(e, index)}
+                      onFocus={handleFocus}
+                      className="w-full border rounded-lg px-3 py-3 text-right text-lg font-medium"
+                      placeholder="0"
+                    />
+                    <span className="text-sm font-medium text-gray-600 w-8">kg</span>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    {[-5, -2.5, 2.5, 5].map((delta) => (
+                      <button
+                        key={delta}
+                        type="button"
+                        onClick={() => handleSetChange(index, 'weight', Math.max(0, set.weight + delta))}
+                        className="flex-1 text-xs py-1 bg-gray-200 hover:bg-gray-300 rounded"
+                      >
+                        {delta > 0 ? '+' : ''}{delta}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="text-xl text-gray-400 font-light">×</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={(el) => { repsRefs.current[index] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={set.reps || ''}
+                      onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value) || 0)}
+                      onKeyDown={(e) => handleRepsKeyDown(e, index)}
+                      onFocus={handleFocus}
+                      className="w-full border rounded-lg px-3 py-3 text-right text-lg font-medium"
+                      placeholder="0"
+                    />
+                    <span className="text-sm font-medium text-gray-600 w-8">回</span>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    {[-1, 1, 5, 10].map((delta) => (
+                      <button
+                        key={delta}
+                        type="button"
+                        onClick={() => handleSetChange(index, 'reps', Math.max(0, set.reps + delta))}
+                        className="flex-1 text-xs py-1 bg-gray-200 hover:bg-gray-300 rounded"
+                      >
+                        {delta > 0 ? '+' : ''}{delta}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
         <button
           type="button"
           onClick={handleAddSet}
-          className="mt-2 text-blue-600 text-sm hover:underline"
+          className="mt-3 w-full py-2 text-blue-600 text-sm border border-blue-600 rounded-lg hover:bg-blue-50"
         >
           + セットを追加
         </button>
