@@ -67,7 +67,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     const newSets = [...sets, { weight: lastSet?.weight || 0, reps: lastSet?.reps || 0 }]
     setSets(newSets)
     setTimeout(() => {
-      weightRefs.current[newSets.length - 1]?.focus()
+      if (isBodyweight) {
+        repsRefs.current[newSets.length - 1]?.focus()
+      } else {
+        weightRefs.current[newSets.length - 1]?.focus()
+      }
     }, 0)
   }
 
@@ -81,7 +85,11 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     newSets[index] = { weight: 0, reps: 0 }
     setSets(newSets)
     setTimeout(() => {
-      weightRefs.current[index]?.focus()
+      if (isBodyweight) {
+        repsRefs.current[index]?.focus()
+      } else {
+        weightRefs.current[index]?.focus()
+      }
     }, 0)
   }
 
