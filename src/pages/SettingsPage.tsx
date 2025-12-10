@@ -33,6 +33,13 @@ export function SettingsPage() {
           <div className="mt-6">
             <h2 className="text-sm font-medium text-gray-500 mb-2">開発用</h2>
             <div className="bg-white rounded-lg shadow divide-y">
+              <Link
+                to="/llm-test"
+                className="flex items-center justify-between p-4 hover:bg-gray-50"
+              >
+                <span>LLM テスト (PoC)</span>
+                <span className="text-gray-400">&rarr;</span>
+              </Link>
               <button
                 onClick={() => seedSampleData()}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
