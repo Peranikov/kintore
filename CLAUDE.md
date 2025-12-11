@@ -8,12 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Workflow
 
-1. 開発を始める前に `TODO.md` を確認し、現在のタスク状況を把握する
-2. 新しいタスクに着手する際は `TODO.md` を更新してからコードを書く
-3. タスク完了時は `TODO.md` のチェックボックスを更新する
-4. バグや改善点を発見したら `TODO.md` に追記する
-5. 新機能を追加した場合は `docs/SPEC.md` も更新する
-6. 作業完了後は必ず `npm run lint && npm run build` で検証する
+1. 新機能を追加した場合は `docs/SPEC.md` も更新する
+2. 作業完了後は必ず `npm run lint && npm run build` で検証する
 
 ## Commands
 
@@ -33,11 +29,14 @@ npm run preview  # 本番ビルドのプレビュー
 - Dexie.js (IndexedDB wrapper)
 - vite-plugin-pwa (Service Worker)
 - Recharts (グラフ描画)
+- Google Gemini API (AI機能)
+- react-swipeable (スワイプジェスチャー)
 
 ### Data Layer
-データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 2）：
+データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 3）：
 - `workoutLogs` - トレーニングログ（日付、種目、セット情報）
 - `exerciseMasters` - 種目マスタ（自重トレーニングフラグ含む）
+- `appSettings` - アプリ設定（APIキー、ユーザープロフィール）
 
 ### Type Definitions
 `src/types/index.ts` にデータモデルを定義：
