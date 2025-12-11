@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Workflow
 
-1. 新機能を追加した場合は `docs/SPEC.md` も更新する
-2. 作業完了後は必ず `npm run lint && npm run build` で検証する
+1. 作業完了後は必ず `npm run lint && npm run build` で検証する
+2. 機能を追加した場合は `docs/SPEC.md` および `CLAUDE.md` の更新をユーザーに提案する
 
 ## Commands
 
