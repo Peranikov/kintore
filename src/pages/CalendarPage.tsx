@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useSwipeable } from 'react-swipeable'
 import { db } from '../db'
 import type { WorkoutLog, Exercise } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
@@ -46,17 +47,26 @@ export function CalendarPage() {
 
   const logDates = new Set(logs?.map(log => log.date) || [])
 
-  function goToPrevMonth() {
+  const goToPrevMonth = useCallback(() => {
     setCurrentDate(new Date(year, month - 1, 1))
-  }
+  }, [year, month])
 
-  function goToNextMonth() {
+  const goToNextMonth = useCallback(() => {
     setCurrentDate(new Date(year, month + 1, 1))
-  }
+  }, [year, month])
 
-  function goToToday() {
+  const goToToday = useCallback(() => {
     setCurrentDate(new Date())
-  }
+  }, [])
+
+  // スワイプハンドラー
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: goToNextMonth,
+    onSwipedRight: goToPrevMonth,
+    trackMouse: false,
+    preventScrollOnSwipe: true,
+    delta: 50,
+  })
 
   function handleDateClick(dateStr: string, log: WorkoutLog | undefined) {
     if (log) {
@@ -111,7 +121,7 @@ export function CalendarPage() {
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
-        <div className="bg-white rounded-lg shadow p-4">
+        <div {...swipeHandlers} className="bg-white rounded-lg shadow p-4 touch-pan-y">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={goToPrevMonth}
