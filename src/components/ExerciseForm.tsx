@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { db } from '../db'
 import type { Exercise, Set, ExerciseMaster } from '../types'
 
@@ -18,7 +18,6 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
   const [masterExercises, setMasterExercises] = useState<ExerciseMaster[]>([])
   const [lastRecord, setLastRecord] = useState<LastRecord | null>(null)
-  const [isBodyweight, setIsBodyweight] = useState(false)
   const weightRefs = useRef<(HTMLInputElement | null)[]>([])
   const repsRefs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -26,23 +25,24 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
   }, [])
 
-  useEffect(() => {
-    if (!name.trim()) {
-      setIsBodyweight(false)
-      return
-    }
+  // useMemoで計算 - setStateをeffect内で呼ばない
+  const isBodyweight = useMemo(() => {
+    if (!name.trim()) return false
     const master = masterExercises.find((ex) => ex.name === name.trim())
-    setIsBodyweight(master?.isBodyweight || false)
+    return master?.isBodyweight || false
   }, [name, masterExercises])
 
   useEffect(() => {
+    // 編集モードまたは名前が空の場合は記録を取得しない
     if (!name.trim() || initialExercise) {
-      setLastRecord(null)
       return
     }
 
+    let cancelled = false
+
     async function fetchLastRecord() {
       const logs = await db.workoutLogs.orderBy('date').reverse().toArray()
+      if (cancelled) return
       for (const log of logs) {
         const exercise = log.exercises.find((ex) => ex.name === name.trim())
         if (exercise) {
@@ -50,10 +50,18 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
           return
         }
       }
-      setLastRecord(null)
+      if (!cancelled) {
+        setLastRecord(null)
+      }
     }
 
     fetchLastRecord()
+
+    return () => {
+      cancelled = true
+      // クリーンアップ時にnullにリセット
+      setLastRecord(null)
+    }
   }, [name, initialExercise])
 
   function handleSetChange(index: number, field: keyof Set, value: number) {
@@ -111,7 +119,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     }
   }
 
-  function handleRepsKeyDown(e: React.KeyboardEvent, _index: number) {
+  function handleRepsKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
       handleAddSet()
@@ -222,7 +230,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
                 type="number"
                 value={set.reps || ''}
                 onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
-                onKeyDown={(e) => handleRepsKeyDown(e, index)}
+                onKeyDown={handleRepsKeyDown}
                 onFocus={handleFocus}
                 className="w-16 border rounded px-2 py-1 text-right"
                 placeholder="0"

@@ -153,6 +153,83 @@ function parseGeneratedPlan(text: string): GeneratedPlan {
   }
 }
 
+// トレーニング評価を生成
+export async function generateWorkoutEvaluation(log: WorkoutLog): Promise<string> {
+  const apiKey = await getApiKey()
+  if (!apiKey) {
+    throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
+  }
+
+  const [profile, recentLogs] = await Promise.all([
+    getUserProfile(),
+    db.workoutLogs.orderBy('date').reverse().limit(10).toArray(),
+  ])
+
+  // 過去のログからこの日のログを除外
+  const previousLogs = recentLogs.filter(l => l.id !== log.id && l.date < log.date).slice(0, 7)
+
+  // 今回のトレーニング内容をフォーマット
+  const todayWorkout = log.exercises.map(ex => {
+    const sets = ex.sets.map(s =>
+      s.weight > 0 ? `${s.weight}kg×${s.reps}回` : `${s.reps}回`
+    ).join(', ')
+    return `- ${ex.name}: ${sets}`
+  }).join('\n')
+
+  const prompt = `あなたは経験豊富なパーソナルトレーナーです。
+ユーザーの今日のトレーニングを評価し、フィードバックを提供してください。
+
+【評価のポイント】
+1. トレーニングボリューム（種目数、セット数）は適切か
+2. 前回と比較して進歩はあるか（重量増加、回数増加など）
+3. 種目のバランスは良いか
+4. 次回への具体的なアドバイス
+
+${profile ? `■ ユーザープロフィール\n${profile}\n` : ''}
+■ 今日のトレーニング（${log.date}）
+${todayWorkout}
+
+■ 過去のトレーニング履歴
+${previousLogs.length > 0 ? formatWorkoutLogs(previousLogs) : 'まだ過去の記録がありません'}
+
+【出力形式】
+・簡潔で具体的なフィードバック（200-300文字程度）
+・ポジティブな点と改善点をバランスよく
+・絵文字を適度に使用してフレンドリーに`
+
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  if (!text) {
+    throw new Error('APIからの応答が空です')
+  }
+
+  return text
+}
+
 // プランを生成
 export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   const apiKey = await getApiKey()
