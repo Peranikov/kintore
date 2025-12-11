@@ -1,9 +1,10 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { WorkoutLog, ExerciseMaster } from '../types'
+import type { WorkoutLog, ExerciseMaster, AppSettings } from '../types'
 
 const db = new Dexie('TrainingLogDB') as Dexie & {
   workoutLogs: EntityTable<WorkoutLog, 'id'>
   exerciseMasters: EntityTable<ExerciseMaster, 'id'>
+  appSettings: EntityTable<AppSettings, 'id'>
 }
 
 db.version(1).stores({
@@ -14,6 +15,12 @@ db.version(1).stores({
 db.version(2).stores({
   workoutLogs: '++id, date, createdAt',
   exerciseMasters: '++id, name, createdAt',
+})
+
+db.version(3).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
 })
 
 const PRESET_EXERCISES = [

@@ -24,3 +24,9 @@ export interface ExerciseMaster {
   isBodyweight?: boolean
   createdAt: number
 }
+
+export interface AppSettings {
+  id?: number
+  key: string
+  value: string
+}
