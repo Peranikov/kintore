@@ -15,6 +15,8 @@
 | データ保存 | IndexedDB (Dexie.js) |
 | PWA | vite-plugin-pwa |
 | グラフ | Recharts |
+| AI API | Google Gemini API (gemini-2.0-flash) |
+| スワイプ | react-swipeable |
 
 ## 機能要件
 
@@ -30,13 +32,15 @@
 
 | 画面 | パス | 機能 |
 |------|------|------|
-| ホーム | `/` | 今日のログ入力、直近ログ一覧表示 |
-| ログ詳細 | `/log/:id` | 記録の確認・編集・削除・テキストエクスポート |
-| カレンダー | `/calendar` | 月間カレンダーでのログ確認 |
-| グラフ | `/graph` | 種目別の進捗グラフ表示 |
-| 設定 | `/settings` | 種目マスタ・エクスポートへのリンク |
+| ホーム | `/` | 今日のログ入力、直近ログ一覧表示、AIプラン生成 |
+| ログ詳細 | `/log/:id` | 記録の確認・編集・削除・テキストエクスポート・AI評価 |
+| カレンダー | `/calendar` | 月間カレンダーでのログ確認（スワイプで月移動） |
+| グラフ | `/graph` | 種目別の進捗グラフ表示、AI総合評価 |
+| 設定 | `/settings` | 種目マスタ・エクスポート・AI設定へのリンク |
 | 種目マスタ | `/exercises` | よく使う種目の登録・管理 |
 | エクスポート | `/export` | 期間指定でのトレーニング記録エクスポート |
+| AI設定 | `/ai-settings` | Gemini APIキー・ユーザープロフィール設定 |
+| AIプラン作成 | `/plan-create` | AIによるトレーニングプラン生成 |
 
 ### 種目入力機能
 
@@ -119,6 +123,38 @@
 - 筋トレマシン（22種目）
 - フリーウェイト・プレートロード（28種目）
 
+### AI機能（Gemini API）
+
+ユーザーが取得したGemini APIキーを使用してAI機能を提供。APIキーはIndexedDBにローカル保存。
+
+#### AI設定（/ai-settings）
+- Gemini APIキーの入力・保存
+- ユーザープロフィール設定（トレーニング目標、体組成、経験など）
+- APIキーはGoogle AI Studioで無料取得可能
+
+#### AIトレーニングプラン生成（/plan-create）
+- 今日の状態・リクエストをメモとして入力
+- 過去7回分の履歴と登録済み種目を考慮してプラン生成
+- プレビュー表示後「採用する」で今日のログに追加
+
+#### AIトレーニング評価（/log/:id）
+- 個別のトレーニングログに対する評価
+- 過去の履歴と比較した進捗フィードバック
+- 次回へのアドバイス
+
+#### AI総合進捗評価（/graph）
+- 過去30回分の履歴を分析
+- 種目ごとの伸び具合
+- トレーニング頻度の評価
+- 改善点と次の目標設定アドバイス
+
+### カレンダー機能
+
+#### スワイプ操作
+- 左スワイプ: 次月へ
+- 右スワイプ: 先月へ
+- ボタン操作も併用可能
+
 ### 将来的な拡張候補
 - トレーニングメニューのテンプレート機能
 - 目標設定・達成率表示
@@ -168,13 +204,24 @@ interface ExerciseMaster {
 }
 ```
 
+### AppSettings（アプリ設定）
+
+```typescript
+interface AppSettings {
+  id?: number          // 自動採番
+  key: string          // 設定キー（geminiApiKey, userProfile）
+  value: string        // 設定値
+}
+```
+
 ## DBスキーマ
 
 ```typescript
-// Version 2
-db.version(2).stores({
+// Version 3
+db.version(3).stores({
   workoutLogs: '++id, date, createdAt',
   exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',  // APIキー、ユーザープロフィール等
 })
 ```
 
@@ -199,7 +246,11 @@ src/
 │   ├── GraphPage.tsx
 │   ├── SettingsPage.tsx
 │   ├── ExerciseMasterPage.tsx
-│   └── ExportPage.tsx
+│   ├── ExportPage.tsx
+│   ├── AISettingsPage.tsx     # AI設定
+│   └── PlanCreatePage.tsx     # AIプラン作成
+├── services/      # 外部API連携
+│   └── gemini.ts  # Gemini API関連関数
 ├── db/            # Dexie.js データベース設定
 ├── types/         # TypeScript型定義
 ├── utils/         # ユーティリティ関数
