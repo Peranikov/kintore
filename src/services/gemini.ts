@@ -230,6 +230,122 @@ ${previousLogs.length > 0 ? formatWorkoutLogs(previousLogs) : 'まだ過去の�
   return text
 }
 
+// 総合進捗評価を生成（グラフページ用）
+export async function generateProgressEvaluation(): Promise<string> {
+  const apiKey = await getApiKey()
+  if (!apiKey) {
+    throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
+  }
+
+  const [profile, recentLogs, exerciseMasters] = await Promise.all([
+    getUserProfile(),
+    db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),
+    db.exerciseMasters.toArray(),
+  ])
+
+  if (recentLogs.length < 2) {
+    throw new Error('評価には最低2回以上のトレーニング記録が必要です。')
+  }
+
+  // 種目ごとの進捗データを集計
+  const exerciseProgress: { [name: string]: { dates: string[]; maxWeights: number[]; maxReps: number[]; isBodyweight: boolean } } = {}
+
+  recentLogs.forEach(log => {
+    log.exercises.forEach(ex => {
+      const master = exerciseMasters.find(m => m.name === ex.name)
+      const isBodyweight = master?.isBodyweight || false
+
+      if (!exerciseProgress[ex.name]) {
+        exerciseProgress[ex.name] = { dates: [], maxWeights: [], maxReps: [], isBodyweight }
+      }
+      const maxWeight = Math.max(...ex.sets.map(s => s.weight))
+      const maxReps = Math.max(...ex.sets.map(s => s.reps))
+      exerciseProgress[ex.name].dates.push(log.date)
+      exerciseProgress[ex.name].maxWeights.push(maxWeight)
+      exerciseProgress[ex.name].maxReps.push(maxReps)
+    })
+  })
+
+  // 進捗サマリを作成
+  const progressSummary = Object.entries(exerciseProgress).map(([name, data]) => {
+    const first = { weight: data.maxWeights[data.maxWeights.length - 1], reps: data.maxReps[data.maxReps.length - 1] }
+    const last = { weight: data.maxWeights[0], reps: data.maxReps[0] }
+
+    if (data.isBodyweight) {
+      const repsDiff = last.reps - first.reps
+      return `- ${name}（自重）: ${first.reps}回 → ${last.reps}回（${repsDiff >= 0 ? '+' : ''}${repsDiff}回）`
+    } else {
+      const weightDiff = last.weight - first.weight
+      return `- ${name}: ${first.weight}kg → ${last.weight}kg（${weightDiff >= 0 ? '+' : ''}${weightDiff}kg）`
+    }
+  }).join('\n')
+
+  // トレーニング頻度を計算
+  const sortedDates = recentLogs.map(l => l.date).sort()
+  const firstDate = sortedDates[0]
+  const lastDate = sortedDates[sortedDates.length - 1]
+  const daysDiff = Math.ceil((new Date(lastDate).getTime() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const frequency = recentLogs.length / (daysDiff / 7)
+
+  const prompt = `あなたは経験豊富なパーソナルトレーナーです。
+ユーザーの過去のトレーニング履歴を分析し、総合的な進捗評価を行ってください。
+
+【分析対象データ】
+■ 期間: ${firstDate} 〜 ${lastDate}（${recentLogs.length}回のトレーニング、週${frequency.toFixed(1)}回ペース）
+
+■ 種目別の進捗
+${progressSummary}
+
+${profile ? `■ ユーザープロフィール\n${profile}\n` : ''}
+■ 直近のトレーニング詳細
+${formatWorkoutLogs(recentLogs.slice(0, 5))}
+
+【評価ポイント】
+1. 各種目の重量・回数の伸び具合
+2. トレーニング頻度は適切か
+3. 種目のバランス（部位の偏りがないか）
+4. 特に伸びている種目と停滞している種目
+5. 今後の具体的な改善アドバイス
+
+【出力形式】
+・300-400文字程度の総合評価
+・伸びている点、改善点を具体的に
+・次の目標設定のアドバイスを含む
+・絵文字を適度に使用してフレンドリーに`
+
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+  if (!text) {
+    throw new Error('APIからの応答が空です')
+  }
+
+  return text
+}
+
 // プランを生成
 export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   const apiKey = await getApiKey()
