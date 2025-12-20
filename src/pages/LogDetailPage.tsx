@@ -1,11 +1,96 @@
 import { useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useSwipeable } from 'react-swipeable'
 import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
 import { generateWorkoutEvaluation, getApiKey } from '../services/gemini'
+
+interface SwipeableExerciseItemProps {
+  exercise: Exercise
+  isBodyweight: boolean
+  formatSets: (sets: Set[], isBodyweight: boolean) => string
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function SwipeableExerciseItem({
+  exercise,
+  isBodyweight,
+  formatSets,
+  onEdit,
+  onDelete,
+}: SwipeableExerciseItemProps) {
+  const [offsetX, setOffsetX] = useState(0)
+  const [isSwiping, setIsSwiping] = useState(false)
+  const deleteThreshold = 80
+
+  const handlers = useSwipeable({
+    onSwiping: (e) => {
+      if (e.dir === 'Left') {
+        setIsSwiping(true)
+        setOffsetX(Math.min(0, -e.deltaX))
+      }
+    },
+    onSwipedLeft: (e) => {
+      if (e.deltaX > deleteThreshold) {
+        setOffsetX(-deleteThreshold)
+      } else {
+        setOffsetX(0)
+      }
+      setIsSwiping(false)
+    },
+    onSwipedRight: () => {
+      setOffsetX(0)
+      setIsSwiping(false)
+    },
+    onTap: () => {
+      if (offsetX < 0) {
+        setOffsetX(0)
+      } else {
+        onEdit()
+      }
+    },
+    trackMouse: false,
+    trackTouch: true,
+    preventScrollOnSwipe: true,
+  })
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Delete background */}
+      <div
+        className="absolute inset-y-0 right-0 bg-red-500 flex items-center justify-end px-4"
+        style={{ width: deleteThreshold }}
+      >
+        <button
+          onClick={onDelete}
+          className="text-white"
+          title="削除"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Foreground content */}
+      <div
+        {...handlers}
+        className="relative bg-white p-4 cursor-pointer"
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.2s ease-out',
+        }}
+      >
+        <div className="font-medium">{exercise.name}</div>
+        <div className="text-sm text-gray-600">{formatSets(exercise.sets, isBodyweight)}</div>
+      </div>
+    </div>
+  )
+}
 
 export function LogDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -210,40 +295,23 @@ export function LogDetailPage() {
             {log.exercises.length > 0 ? (
               <ul className="divide-y">
                 {log.exercises.map((ex, index) => (
-                  <li key={ex.id} className="p-4">
+                  <li key={ex.id}>
                     {editingExerciseIndex === index ? (
-                      <ExerciseForm
-                        initialExercise={ex}
-                        onSubmit={(updated) => handleUpdateExercise(index, updated)}
-                        onCancel={() => setEditingExerciseIndex(null)}
-                      />
-                    ) : (
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium">{ex.name}</div>
-                          <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name))}</div>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setEditingExerciseIndex(index)}
-                            className="p-1 text-gray-400 hover:text-blue-600"
-                            title="編集"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExercise(index)}
-                            className="p-1 text-red-400 hover:text-red-600"
-                            title="削除"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                      <div className="p-4">
+                        <ExerciseForm
+                          initialExercise={ex}
+                          onSubmit={(updated) => handleUpdateExercise(index, updated)}
+                          onCancel={() => setEditingExerciseIndex(null)}
+                        />
                       </div>
+                    ) : (
+                      <SwipeableExerciseItem
+                        exercise={ex}
+                        isBodyweight={isBodyweightExercise(ex.name)}
+                        formatSets={formatSets}
+                        onEdit={() => setEditingExerciseIndex(index)}
+                        onDelete={() => handleDeleteExercise(index)}
+                      />
                     )}
                   </li>
                 ))}
