@@ -31,11 +31,16 @@ function SwipeableExerciseItem({
     onSwiping: (e) => {
       if (e.dir === 'Left') {
         setIsSwiping(true)
-        setOffsetX(Math.min(0, -e.deltaX))
+        // absX は常に正の値
+        setOffsetX(-Math.min(e.absX, deleteThreshold))
+      } else if (e.dir === 'Right' && offsetX < 0) {
+        setIsSwiping(true)
+        // 右スワイプで閉じる
+        setOffsetX(Math.min(0, -deleteThreshold + e.absX))
       }
     },
     onSwipedLeft: (e) => {
-      if (e.deltaX > deleteThreshold) {
+      if (e.absX > deleteThreshold) {
         setOffsetX(-deleteThreshold)
       } else {
         setOffsetX(0)
@@ -53,9 +58,10 @@ function SwipeableExerciseItem({
         onEdit()
       }
     },
-    trackMouse: false,
+    trackMouse: true,
     trackTouch: true,
     preventScrollOnSwipe: true,
+    delta: 10,
   })
 
   return (
