@@ -119,10 +119,21 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     }
   }
 
-  function handleRepsKeyDown(e: React.KeyboardEvent) {
+  function handleRepsKeyDown(e: React.KeyboardEvent, index: number) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      handleAddSet()
+      const nextIndex = index + 1
+      if (nextIndex < sets.length) {
+        // 次のセットがある場合はそこにフォーカス
+        if (isBodyweight) {
+          repsRefs.current[nextIndex]?.focus()
+        } else {
+          weightRefs.current[nextIndex]?.focus()
+        }
+      } else {
+        // 次のセットがない場合は新規追加
+        handleAddSet()
+      }
     }
   }
 
@@ -230,7 +241,7 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
                 type="number"
                 value={set.reps || ''}
                 onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
-                onKeyDown={handleRepsKeyDown}
+                onKeyDown={(e) => handleRepsKeyDown(e, index)}
                 onFocus={handleFocus}
                 className="w-16 border rounded px-2 py-1 text-right"
                 placeholder="0"
