@@ -8,19 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Workflow
 
-1. 作業完了後は必ず `npm run lint && npm run build` で検証する
-2. テストは `npm run test:run` で実行する
-3. 機能を追加した場合は `docs/SPEC.md` および `CLAUDE.md` の更新をユーザーに提案する
+1. 作業完了後は `npm run check` で全検証（lint + test + build）
+2. 機能を追加した場合は `docs/SPEC.md` および `CLAUDE.md` の更新をユーザーに提案する
 
 ## Commands
 
 ```bash
-npm run dev      # 開発サーバー起動
-npm run build    # TypeScriptコンパイル + 本番ビルド
-npm run lint     # ESLint実行
-npm run test     # テスト実行（watchモード）
-npm run test:run # テスト実行（単発）
-npm run preview  # 本番ビルドのプレビュー
+npm run dev       # 開発サーバー起動
+npm run check     # 全検証（lint + test + build）★推奨
+npm run lint      # ESLint実行
+npm run test:run  # テスト実行（単発）
+npm run typecheck # 型チェックのみ
+npm run build     # 本番ビルド
 ```
 
 ## Architecture
