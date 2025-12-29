@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import Markdown from 'react-markdown'
 import {
   LineChart,
   Line,
@@ -89,9 +90,9 @@ export function GraphPage() {
                 </div>
               ) : evaluation ? (
                 <div>
-                  <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                    {evaluation}
-                  </p>
+                  <div className="prose prose-sm max-w-none text-gray-700">
+                    <Markdown>{evaluation}</Markdown>
+                  </div>
                   <button
                     onClick={handleGenerateEvaluation}
                     disabled={evaluationLoading}

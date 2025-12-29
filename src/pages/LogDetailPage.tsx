@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import Markdown from 'react-markdown'
 import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
@@ -359,9 +360,9 @@ export function LogDetailPage() {
                       {new Date(evaluationGeneratedAt).toLocaleString('ja-JP')} に生成
                     </p>
                   )}
-                  <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                    {evaluation}
-                  </p>
+                  <div className="prose prose-sm max-w-none text-gray-700">
+                    <Markdown>{evaluation}</Markdown>
+                  </div>
                   <button
                     onClick={handleGenerateEvaluation}
                     disabled={evaluationLoading}
