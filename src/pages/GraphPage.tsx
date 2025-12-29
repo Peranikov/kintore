@@ -14,27 +14,7 @@ import {
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
 import { generateProgressEvaluation, getApiKey } from '../services/gemini'
-
-interface ChartData {
-  date: string
-  maxWeight: number
-  totalVolume: number
-  estimated1RM: number
-  maxReps: number
-  totalReps: number
-}
-
-interface ExerciseChartData {
-  name: string
-  lastDate: string
-  data: ChartData[]
-  isBodyweight: boolean
-}
-
-function calculate1RM(weight: number, reps: number): number {
-  if (reps === 0) return 0
-  return Math.round(weight * (1 + reps / 30) * 10) / 10
-}
+import { buildExerciseChartData } from '../utils/graphCalculations'
 
 export function GraphPage() {
   const logs = useLiveQuery(() => db.workoutLogs.toArray(), [])
@@ -73,72 +53,9 @@ export function GraphPage() {
     return date.toISOString().split('T')[0]
   }, [])
 
-  const exerciseCharts = useMemo<ExerciseChartData[]>(() => {
+  const exerciseCharts = useMemo(() => {
     if (!logs || !exerciseMasters) return []
-
-    function isBodyweightExercise(name: string): boolean {
-      const master = exerciseMasters?.find((m) => m.name === name)
-      return master?.isBodyweight || false
-    }
-
-    const exerciseDataMap = new Map<string, Map<string, { maxWeight: number; totalVolume: number; estimated1RM: number; maxReps: number; totalReps: number }>>()
-
-    logs.forEach((log) => {
-      log.exercises.forEach((ex) => {
-        if (!exerciseDataMap.has(ex.name)) {
-          exerciseDataMap.set(ex.name, new Map())
-        }
-        const dateMap = exerciseDataMap.get(ex.name)!
-
-        const maxWeight = Math.max(...ex.sets.map((s) => s.weight))
-        const totalVolume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0)
-        const max1RM = Math.max(...ex.sets.map((s) => calculate1RM(s.weight, s.reps)))
-        const maxReps = Math.max(...ex.sets.map((s) => s.reps))
-        const totalReps = ex.sets.reduce((sum, s) => sum + s.reps, 0)
-
-        const existing = dateMap.get(log.date)
-        if (existing) {
-          dateMap.set(log.date, {
-            maxWeight: Math.max(existing.maxWeight, maxWeight),
-            totalVolume: existing.totalVolume + totalVolume,
-            estimated1RM: Math.max(existing.estimated1RM, max1RM),
-            maxReps: Math.max(existing.maxReps, maxReps),
-            totalReps: existing.totalReps + totalReps,
-          })
-        } else {
-          dateMap.set(log.date, { maxWeight, totalVolume, estimated1RM: max1RM, maxReps, totalReps })
-        }
-      })
-    })
-
-    const result: ExerciseChartData[] = []
-
-    exerciseDataMap.forEach((dateMap, name) => {
-      const allData = Array.from(dateMap.entries())
-        .map(([date, data]) => ({
-          date,
-          maxWeight: data.maxWeight,
-          totalVolume: data.totalVolume,
-          estimated1RM: data.estimated1RM,
-          maxReps: data.maxReps,
-          totalReps: data.totalReps,
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date))
-
-      const filteredData = allData.filter((d) => d.date >= threeMonthsAgo)
-
-      if (filteredData.length > 0) {
-        const lastDate = filteredData[filteredData.length - 1].date
-        result.push({
-          name,
-          lastDate,
-          data: filteredData,
-          isBodyweight: isBodyweightExercise(name),
-        })
-      }
-    })
-
-    return result.sort((a, b) => b.lastDate.localeCompare(a.lastDate))
+    return buildExerciseChartData(logs, exerciseMasters, threeMonthsAgo)
   }, [logs, threeMonthsAgo, exerciseMasters])
 
   return (
