@@ -47,7 +47,7 @@ export async function saveUserProfile(profile: string): Promise<void> {
 }
 
 // トレーニング履歴をフォーマット
-function formatWorkoutLogs(logs: WorkoutLog[]): string {
+export function formatWorkoutLogs(logs: WorkoutLog[]): string {
   if (logs.length === 0) {
     return 'トレーニング履歴はまだありません。'
   }
@@ -64,7 +64,7 @@ function formatWorkoutLogs(logs: WorkoutLog[]): string {
 }
 
 // 器具マスタをフォーマット
-function formatExerciseMasters(masters: ExerciseMaster[]): string {
+export function formatExerciseMasters(masters: ExerciseMaster[]): string {
   return masters.map(m => {
     const suffix = m.isBodyweight ? '（自重）' : ''
     return `- ${m.name}${suffix}`
@@ -72,7 +72,7 @@ function formatExerciseMasters(masters: ExerciseMaster[]): string {
 }
 
 // プロンプトを構築
-function buildPrompt(
+export function buildPrompt(
   profile: string | null,
   exerciseMasters: ExerciseMaster[],
   recentLogs: WorkoutLog[],
@@ -121,7 +121,7 @@ function buildPrompt(
 }
 
 // JSONを抽出してパース
-function parseGeneratedPlan(text: string): GeneratedPlan {
+export function parseGeneratedPlan(text: string): GeneratedPlan {
   // JSONブロックを抽出（```json ... ``` または { ... }）
   let jsonStr = text
 
