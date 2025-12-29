@@ -47,13 +47,6 @@ export function SettingsPage() {
                 <span>Gemini API テスト</span>
                 <span className="text-gray-400">&rarr;</span>
               </Link>
-              <Link
-                to="/llm-test"
-                className="flex items-center justify-between p-4 hover:bg-gray-50"
-              >
-                <span>WebLLM テスト (PoC)</span>
-                <span className="text-gray-400">&rarr;</span>
-              </Link>
               <button
                 onClick={() => seedSampleData()}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"

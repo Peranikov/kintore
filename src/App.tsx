@@ -6,7 +6,6 @@ import { CalendarPage } from './pages/CalendarPage'
 import { GraphPage } from './pages/GraphPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ExportPage } from './pages/ExportPage'
-import { LLMTestPage } from './pages/LLMTestPage'
 import { GeminiTestPage } from './pages/GeminiTestPage'
 import { AISettingsPage } from './pages/AISettingsPage'
 import { PlanCreatePage } from './pages/PlanCreatePage'
@@ -22,7 +21,6 @@ function App() {
         <Route path="/graph" element={<GraphPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/export" element={<ExportPage />} />
-        <Route path="/llm-test" element={<LLMTestPage />} />
         <Route path="/gemini-test" element={<GeminiTestPage />} />
         <Route path="/ai-settings" element={<AISettingsPage />} />
         <Route path="/plan-create" element={<PlanCreatePage />} />
