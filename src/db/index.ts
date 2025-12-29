@@ -23,6 +23,13 @@ db.version(3).stores({
   appSettings: '++id, &key',
 })
 
+// Version 4: WorkoutLogにevaluation, evaluationGeneratedAtを追加
+db.version(4).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+})
+
 const PRESET_EXERCISES = [
   // 筋トレマシン
   'チェストプレス',

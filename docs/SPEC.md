@@ -135,12 +135,15 @@
 #### AIトレーニングプラン生成（/plan-create）
 - 今日の状態・リクエストをメモとして入力
 - 過去7回分の履歴と登録済み種目を考慮してプラン生成
+- 直近の保存済みAI評価がある場合、その改善点を考慮してプラン生成
 - プレビュー表示後「採用する」で今日のログに追加
 
 #### AIトレーニング評価（/log/:id）
 - 個別のトレーニングログに対する評価
 - 過去の履歴と比較した進捗フィードバック
 - 次回へのアドバイス
+- 評価結果をログに保存（永続化）
+- 保存済み評価は再表示可能（生成日時を表示）
 
 #### AI総合進捗評価（/graph）
 - 過去30回分の履歴を分析
@@ -169,6 +172,8 @@ interface WorkoutLog {
   date: string         // YYYY-MM-DD
   exercises: Exercise[]
   memo?: string
+  evaluation?: string           // AI評価テキスト
+  evaluationGeneratedAt?: number // AI評価生成日時
   createdAt: number    // timestamp
   updatedAt: number    // timestamp
 }
@@ -217,9 +222,9 @@ interface AppSettings {
 ## DBスキーマ
 
 ```typescript
-// Version 3
-db.version(3).stores({
-  workoutLogs: '++id, date, createdAt',
+// Version 4
+db.version(4).stores({
+  workoutLogs: '++id, date, createdAt',  // evaluation, evaluationGeneratedAt追加
   exerciseMasters: '++id, name, createdAt',
   appSettings: '++id, &key',  // APIキー、ユーザープロフィール等
 })

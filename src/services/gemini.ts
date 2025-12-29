@@ -84,7 +84,8 @@ function buildPrompt(
 【重要な指示】
 1. 提案する種目は「利用可能な器具」リストに存在するもののみを使用してください
 2. 過去の履歴から適切な重量・回数を推測してください
-3. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+3. 「前回のトレーニング評価」がある場合は、その改善点を考慮してプランを作成してください
+4. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
@@ -106,11 +107,17 @@ function buildPrompt(
 
   const historySection = `\n\n■ 最近のトレーニング履歴（直近7回分）\n${formatWorkoutLogs(recentLogs)}`
 
+  // 直近の評価を取得してプロンプトに追加
+  const latestEvaluation = recentLogs.find(log => log.evaluation)?.evaluation
+  const evaluationSection = latestEvaluation
+    ? `\n\n■ 前回のトレーニング評価（改善点を考慮してください）\n${latestEvaluation}`
+    : ''
+
   const memoSection = userMemo.trim()
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${memoSection}`
 }
 
 // JSONを抽出してパース

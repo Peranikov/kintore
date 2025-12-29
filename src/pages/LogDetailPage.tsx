@@ -16,6 +16,8 @@ export function LogDetailPage() {
   const [memo, setMemo] = useState('')
   const [memoInitialized, setMemoInitialized] = useState(false)
   const [evaluation, setEvaluation] = useState<string | null>(null)
+  const [evaluationGeneratedAt, setEvaluationGeneratedAt] = useState<number | null>(null)
+  const [evaluationInitialized, setEvaluationInitialized] = useState(false)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
 
@@ -49,6 +51,13 @@ export function LogDetailPage() {
   if (log && !memoInitialized) {
     setMemo(log.memo || '')
     setMemoInitialized(true)
+  }
+
+  // 保存済み評価を読み込み
+  if (log && !evaluationInitialized) {
+    setEvaluation(log.evaluation || null)
+    setEvaluationGeneratedAt(log.evaluationGeneratedAt || null)
+    setEvaluationInitialized(true)
   }
 
   async function handleDeleteLog() {
@@ -160,17 +169,27 @@ export function LogDetailPage() {
     })
   }
 
-  // AI評価を生成
+  // AI評価を生成して保存
   const handleGenerateEvaluation = useCallback(async () => {
-    if (!log) return
+    if (!log?.id) return
 
     setEvaluationLoading(true)
     setEvaluationError(null)
-    setEvaluation(null)
 
     try {
       const result = await generateWorkoutEvaluation(log)
+      const now = Date.now()
       setEvaluation(result)
+      setEvaluationGeneratedAt(now)
+
+      // 評価をログに保存
+      const updated: WorkoutLog = {
+        ...log,
+        evaluation: result,
+        evaluationGeneratedAt: now,
+        updatedAt: now,
+      }
+      await db.workoutLogs.put(updated)
     } catch (e) {
       setEvaluationError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -301,6 +320,11 @@ export function LogDetailPage() {
                 </div>
               ) : evaluation ? (
                 <div>
+                  {evaluationGeneratedAt && (
+                    <p className="text-xs text-gray-400 mb-2">
+                      {new Date(evaluationGeneratedAt).toLocaleString('ja-JP')} に生成
+                    </p>
+                  )}
                   <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                     {evaluation}
                   </p>

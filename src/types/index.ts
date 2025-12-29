@@ -14,6 +14,8 @@ export interface WorkoutLog {
   date: string
   exercises: Exercise[]
   memo?: string
+  evaluation?: string              // AI評価テキスト
+  evaluationGeneratedAt?: number   // 評価生成日時
   createdAt: number
   updatedAt: number
 }
