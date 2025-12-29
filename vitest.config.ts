@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    // デフォルトはnode環境（高速）
+    // Reactコンポーネントテストは @vitest-environment jsdom で個別指定
+    environment: 'node',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
   },
