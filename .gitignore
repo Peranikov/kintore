@@ -30,7 +30,6 @@ npm-debug.log*
 # TypeScript cache
 *.tsbuildinfo
 
-# Claude Code - allow skills directory
+# Claude Code
 !.claude/
-.claude/*
-!.claude/skills/
+.claude/settings.local.json
