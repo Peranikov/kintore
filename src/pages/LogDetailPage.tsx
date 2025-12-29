@@ -100,6 +100,20 @@ export function LogDetailPage() {
     setIsAddingExercise(false)
   }
 
+  async function handleMoveExercise(index: number, direction: 'up' | 'down') {
+    if (!log?.id) return
+    const exercises = [...log.exercises]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= exercises.length) return
+    ;[exercises[index], exercises[targetIndex]] = [exercises[targetIndex], exercises[index]]
+    const updated: WorkoutLog = {
+      ...log,
+      exercises,
+      updatedAt: Date.now(),
+    }
+    await db.workoutLogs.put(updated)
+  }
+
   async function handleSaveMemo() {
     if (!log?.id) return
     const updated: WorkoutLog = {
@@ -243,6 +257,26 @@ export function LogDetailPage() {
                           <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name))}</div>
                         </div>
                         <div className="flex">
+                          <button
+                            onClick={() => handleMoveExercise(index, 'up')}
+                            disabled={index === 0}
+                            className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-400"
+                            title="上へ移動"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleMoveExercise(index, 'down')}
+                            disabled={index === log.exercises.length - 1}
+                            className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-400"
+                            title="下へ移動"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
                           <button
                             onClick={() => setEditingExerciseIndex(index)}
                             className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-blue-600"
