@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint src && eslint .",
+    "lint:ox": "oxlint src",
+    "lint:es": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"
@@ -37,6 +39,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "jsdom": "^27.4.0",
+    "oxlint": "^1.35.0",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
