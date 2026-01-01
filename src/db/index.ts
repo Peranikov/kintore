@@ -36,15 +36,30 @@ db.version(5).stores({
   exerciseMasters: '++id, name, createdAt',
   appSettings: '++id, &key',
 }).upgrade(async (tx) => {
-  const cardioExercises = [
-    { name: 'ランニング', isCardio: true, createdAt: Date.now() },
-    { name: 'バイク', isCardio: true, createdAt: Date.now() },
-  ]
+  const cardioExerciseNames = ['ランニング', 'バイク']
   const table = tx.table('exerciseMasters')
-  for (const exercise of cardioExercises) {
-    const existing = await table.where('name').equals(exercise.name).first()
-    if (!existing) {
-      await table.add(exercise)
+  for (const name of cardioExerciseNames) {
+    const existing = await table.where('name').equals(name).first()
+    if (existing) {
+      await table.update(existing.id, { isCardio: true })
+    } else {
+      await table.add({ name, isCardio: true, createdAt: Date.now() })
+    }
+  }
+})
+
+// Version 6: 既存のランニング・バイクにisCardioフラグを設定（Version 5で未設定の場合の修正）
+db.version(6).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+}).upgrade(async (tx) => {
+  const cardioExerciseNames = ['ランニング', 'バイク']
+  const table = tx.table('exerciseMasters')
+  for (const name of cardioExerciseNames) {
+    const existing = await table.where('name').equals(name).first()
+    if (existing && !existing.isCardio) {
+      await table.update(existing.id, { isCardio: true })
     }
   }
 })

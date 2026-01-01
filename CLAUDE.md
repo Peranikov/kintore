@@ -37,7 +37,7 @@ npm run build     # 本番ビルド
 - react-swipeable (スワイプジェスチャー)
 
 ### Data Layer
-データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 5）：
+データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 6）：
 - `workoutLogs` - トレーニングログ（日付、種目、セット情報、AI評価）
 - `exerciseMasters` - 種目マスタ（自重・有酸素フラグ含む）
 - `appSettings` - アプリ設定（APIキー、ユーザープロフィール）

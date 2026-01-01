@@ -262,8 +262,8 @@ interface AppSettings {
 ## DBスキーマ
 
 ```typescript
-// Version 5
-db.version(5).stores({
+// Version 6
+db.version(6).stores({
   workoutLogs: '++id, date, createdAt',
   exerciseMasters: '++id, name, createdAt',  // isCardio追加、有酸素運動種目を自動追加
   appSettings: '++id, &key',
