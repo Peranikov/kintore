@@ -7,6 +7,9 @@ export interface ChartData {
   estimated1RM: number
   maxReps: number
   totalReps: number
+  // 有酸素運動用
+  totalDuration: number    // 合計時間（分）
+  totalDistance: number    // 合計距離（km）
 }
 
 export interface ExerciseChartData {
@@ -14,6 +17,7 @@ export interface ExerciseChartData {
   lastDate: string
   data: ChartData[]
   isBodyweight: boolean
+  isCardio: boolean
 }
 
 /**
@@ -65,6 +69,20 @@ export function getTotalReps(sets: Set[]): number {
 }
 
 /**
+ * セット配列から合計時間を取得（有酸素運動用）
+ */
+export function getTotalDuration(sets: Set[]): number {
+  return sets.reduce((sum, s) => sum + (s.duration || 0), 0)
+}
+
+/**
+ * セット配列から合計距離を取得（有酸素運動用）
+ */
+export function getTotalDistance(sets: Set[]): number {
+  return Math.round(sets.reduce((sum, s) => sum + (s.distance || 0), 0) * 10) / 10
+}
+
+/**
  * 種目が自重トレーニングかどうかを判定
  */
 export function isBodyweightExercise(
@@ -73,6 +91,17 @@ export function isBodyweightExercise(
 ): boolean {
   const master = exerciseMasters.find((m) => m.name === exerciseName)
   return master?.isBodyweight || false
+}
+
+/**
+ * 種目が有酸素運動かどうかを判定
+ */
+export function isCardioExercise(
+  exerciseName: string,
+  exerciseMasters: ExerciseMaster[]
+): boolean {
+  const master = exerciseMasters.find((m) => m.name === exerciseName)
+  return master?.isCardio || false
 }
 
 /**
@@ -85,6 +114,8 @@ export function calculateExerciseStats(sets: Set[]): Omit<ChartData, 'date'> {
     estimated1RM: getMaxEstimated1RM(sets),
     maxReps: getMaxReps(sets),
     totalReps: getTotalReps(sets),
+    totalDuration: getTotalDuration(sets),
+    totalDistance: getTotalDistance(sets),
   }
 }
 
@@ -101,6 +132,8 @@ export function mergeExerciseData(
     estimated1RM: Math.max(existing.estimated1RM, newData.estimated1RM),
     maxReps: Math.max(existing.maxReps, newData.maxReps),
     totalReps: existing.totalReps + newData.totalReps,
+    totalDuration: existing.totalDuration + newData.totalDuration,
+    totalDistance: Math.round((existing.totalDistance + newData.totalDistance) * 10) / 10,
   }
 }
 
@@ -156,6 +189,7 @@ export function buildExerciseChartData(
         lastDate,
         data: filteredData,
         isBodyweight: isBodyweightExercise(name, exerciseMasters),
+        isCardio: isCardioExercise(name, exerciseMasters),
       })
     }
   })

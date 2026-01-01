@@ -49,6 +49,11 @@ export function LogDetailPage() {
     return master?.isBodyweight || false
   }
 
+  function isCardioExercise(name: string): boolean {
+    const master = exerciseMasters?.find((m) => m.name === name)
+    return master?.isCardio || false
+  }
+
   if (log && !memoInitialized) {
     setMemo(log.memo || '')
     setMemoInitialized(true)
@@ -126,7 +131,14 @@ export function LogDetailPage() {
     setIsEditing(false)
   }
 
-  function formatSets(sets: Set[], isBodyweight: boolean): string {
+  function formatSets(sets: Set[], isBodyweight: boolean, isCardio: boolean): string {
+    if (isCardio) {
+      const s = sets[0]
+      if (!s) return ''
+      const parts = [`${s.duration}分`]
+      if (s.distance) parts.push(`${s.distance}km`)
+      return parts.join(' / ')
+    }
     if (isBodyweight) {
       return sets.map(s => `${s.reps}回`).join(', ')
     }
@@ -142,14 +154,24 @@ export function LogDetailPage() {
 
     log.exercises.forEach((ex) => {
       const bodyweight = isBodyweightExercise(ex.name)
+      const cardio = isCardioExercise(ex.name)
       lines.push(`## ${ex.name}`)
-      ex.sets.forEach((set, i) => {
-        if (bodyweight) {
-          lines.push(`- ${i + 1}セット目: ${set.reps}回`)
-        } else {
-          lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+      if (cardio) {
+        const s = ex.sets[0]
+        if (s) {
+          const parts = [`${s.duration}分`]
+          if (s.distance) parts.push(`${s.distance}km`)
+          lines.push(`- ${parts.join(' / ')}`)
         }
-      })
+      } else {
+        ex.sets.forEach((set, i) => {
+          if (bodyweight) {
+            lines.push(`- ${i + 1}セット目: ${set.reps}回`)
+          } else {
+            lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+          }
+        })
+      }
       lines.push('')
     })
 
@@ -255,7 +277,7 @@ export function LogDetailPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="font-medium">{ex.name}</div>
-                          <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name))}</div>
+                          <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name), isCardioExercise(ex.name))}</div>
                         </div>
                         <div className="flex">
                           <button

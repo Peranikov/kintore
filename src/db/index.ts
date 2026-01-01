@@ -30,6 +30,25 @@ db.version(4).stores({
   appSettings: '++id, &key',
 })
 
+// Version 5: ExerciseMasterにisCardioを追加、有酸素運動種目を追加
+db.version(5).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+}).upgrade(async (tx) => {
+  const cardioExercises = [
+    { name: 'ランニング', isCardio: true, createdAt: Date.now() },
+    { name: 'バイク', isCardio: true, createdAt: Date.now() },
+  ]
+  const table = tx.table('exerciseMasters')
+  for (const exercise of cardioExercises) {
+    const existing = await table.where('name').equals(exercise.name).first()
+    if (!existing) {
+      await table.add(exercise)
+    }
+  }
+})
+
 const PRESET_EXERCISES = [
   // 筋トレマシン
   'チェストプレス',

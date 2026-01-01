@@ -7,9 +7,11 @@ import { BottomNav } from '../components/BottomNav'
 export function ExerciseMasterPage() {
   const [newName, setNewName] = useState('')
   const [newIsBodyweight, setNewIsBodyweight] = useState(false)
+  const [newIsCardio, setNewIsCardio] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
   const [editingIsBodyweight, setEditingIsBodyweight] = useState(false)
+  const [editingIsCardio, setEditingIsCardio] = useState(false)
 
   const exercises = useLiveQuery(
     () => db.exerciseMasters.orderBy('name').toArray(),
@@ -29,10 +31,12 @@ export function ExerciseMasterPage() {
     await db.exerciseMasters.add({
       name: newName.trim(),
       isBodyweight: newIsBodyweight,
+      isCardio: newIsCardio,
       createdAt: Date.now(),
     })
     setNewName('')
     setNewIsBodyweight(false)
+    setNewIsCardio(false)
   }
 
   async function handleUpdate(id: number) {
@@ -44,10 +48,15 @@ export function ExerciseMasterPage() {
       return
     }
 
-    await db.exerciseMasters.update(id, { name: editingName.trim(), isBodyweight: editingIsBodyweight })
+    await db.exerciseMasters.update(id, {
+      name: editingName.trim(),
+      isBodyweight: editingIsBodyweight,
+      isCardio: editingIsCardio,
+    })
     setEditingId(null)
     setEditingName('')
     setEditingIsBodyweight(false)
+    setEditingIsCardio(false)
   }
 
   async function handleDelete(id: number) {
@@ -79,15 +88,32 @@ export function ExerciseMasterPage() {
               追加
             </button>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              checked={newIsBodyweight}
-              onChange={(e) => setNewIsBodyweight(e.target.checked)}
-              className="rounded"
-            />
-            自重トレーニング（重量入力なし）
-          </label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={newIsBodyweight}
+                onChange={(e) => {
+                  setNewIsBodyweight(e.target.checked)
+                  if (e.target.checked) setNewIsCardio(false)
+                }}
+                className="rounded"
+              />
+              自重トレーニング
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={newIsCardio}
+                onChange={(e) => {
+                  setNewIsCardio(e.target.checked)
+                  if (e.target.checked) setNewIsBodyweight(false)
+                }}
+                className="rounded"
+              />
+              有酸素運動
+            </label>
+          </div>
         </form>
 
         <section>
@@ -117,21 +143,39 @@ export function ExerciseMasterPage() {
                             setEditingId(null)
                             setEditingName('')
                             setEditingIsBodyweight(false)
+                            setEditingIsCardio(false)
                           }}
                           className="text-gray-600 text-sm hover:underline"
                         >
                           キャンセル
                         </button>
                       </div>
-                      <label className="flex items-center gap-2 text-sm text-gray-600">
-                        <input
-                          type="checkbox"
-                          checked={editingIsBodyweight}
-                          onChange={(e) => setEditingIsBodyweight(e.target.checked)}
-                          className="rounded"
-                        />
-                        自重トレーニング
-                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                          <input
+                            type="checkbox"
+                            checked={editingIsBodyweight}
+                            onChange={(e) => {
+                              setEditingIsBodyweight(e.target.checked)
+                              if (e.target.checked) setEditingIsCardio(false)
+                            }}
+                            className="rounded"
+                          />
+                          自重トレーニング
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                          <input
+                            type="checkbox"
+                            checked={editingIsCardio}
+                            onChange={(e) => {
+                              setEditingIsCardio(e.target.checked)
+                              if (e.target.checked) setEditingIsBodyweight(false)
+                            }}
+                            className="rounded"
+                          />
+                          有酸素運動
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex justify-between items-center">
@@ -140,6 +184,9 @@ export function ExerciseMasterPage() {
                         {ex.isBodyweight && (
                           <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">自重</span>
                         )}
+                        {ex.isCardio && (
+                          <span className="ml-2 text-xs bg-green-200 text-green-700 px-1.5 py-0.5 rounded">有酸素</span>
+                        )}
                       </div>
                       <div className="flex">
                         <button
@@ -147,6 +194,7 @@ export function ExerciseMasterPage() {
                             setEditingId(ex.id!)
                             setEditingName(ex.name)
                             setEditingIsBodyweight(ex.isBodyweight || false)
+                            setEditingIsCardio(ex.isCardio || false)
                           }}
                           className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-blue-600"
                           title="編集"

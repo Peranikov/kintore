@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-筋トレログPWAアプリ。ローカル（IndexedDB）にトレーニング記録を保存し、オフラインでも動作する。
+トレーニングログPWAアプリ。ローカル（IndexedDB）にトレーニング記録を保存し、オフラインでも動作する。
+ウェイトトレーニング、自重トレーニング、有酸素運動（ランニング・バイク）に対応。
 
 ## Development Workflow
 
@@ -36,24 +37,24 @@ npm run build     # 本番ビルド
 - react-swipeable (スワイプジェスチャー)
 
 ### Data Layer
-データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 4）：
+データは `src/db/index.ts` でDexie.jsを使用してIndexedDBに永続化（現在Version 5）：
 - `workoutLogs` - トレーニングログ（日付、種目、セット情報、AI評価）
-- `exerciseMasters` - 種目マスタ（自重トレーニングフラグ含む）
+- `exerciseMasters` - 種目マスタ（自重・有酸素フラグ含む）
 - `appSettings` - アプリ設定（APIキー、ユーザープロフィール）
 
 ### Type Definitions
 `src/types/index.ts` にデータモデルを定義：
 - `WorkoutLog` - 1日分のトレーニング記録（evaluation, evaluationGeneratedAt含む）
 - `Exercise` - 種目（複数セットを持つ）
-- `Set` - 重量(kg)と回数
-- `ExerciseMaster` - 登録済み種目（`isBodyweight`フラグで自重トレーニングを識別）
+- `Set` - 重量(kg)と回数、有酸素用にduration(分)とdistance(km)
+- `ExerciseMaster` - 登録済み種目（`isBodyweight`で自重、`isCardio`で有酸素を識別）
 
 ## Testing
 
 ### テスト構成
 - `src/services/gemini.test.ts` - AI機能のピュア関数テスト（26件）
 - `src/components/ExerciseForm.test.tsx` - フォームコンポーネントテスト（23件）
-- `src/utils/graphCalculations.test.ts` - グラフ計算ロジックテスト（29件）
+- `src/utils/graphCalculations.test.ts` - グラフ計算ロジックテスト（30件）
 - `src/db/index.test.ts` - DB層CRUDテスト（30件）
 
 ### テスト環境設定

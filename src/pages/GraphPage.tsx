@@ -148,10 +148,74 @@ export function GraphPage() {
                   {exercise.isBodyweight && (
                     <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">自重</span>
                   )}
+                  {exercise.isCardio && (
+                    <span className="ml-2 text-xs bg-green-200 text-green-700 px-1.5 py-0.5 rounded">有酸素</span>
+                  )}
                 </h2>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
-                    {exercise.isBodyweight ? (
+                    {exercise.isCardio ? (
+                      <LineChart data={exercise.data}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 10 }}
+                          tickFormatter={(value) => {
+                            const [, m, d] = value.split('-')
+                            return `${Number(m)}/${Number(d)}`
+                          }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tick={{ fontSize: 10 }}
+                          tickFormatter={(value) => `${value}`}
+                          width={40}
+                          unit="分"
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tick={{ fontSize: 10 }}
+                          tickFormatter={(value) => `${value}`}
+                          width={40}
+                          unit="km"
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            if (name === 'totalDuration') return [`${value}分`, '時間']
+                            if (name === 'totalDistance') return [`${value}km`, '距離']
+                            return [value, name]
+                          }}
+                          labelFormatter={(label) => label}
+                        />
+                        <Legend
+                          formatter={(value) => {
+                            if (value === 'totalDuration') return '時間'
+                            if (value === 'totalDistance') return '距離'
+                            return value
+                          }}
+                          wrapperStyle={{ fontSize: '12px' }}
+                        />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="totalDuration"
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                          dot={{ fill: '#2563eb', r: 2 }}
+                          activeDot={{ r: 4 }}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="totalDistance"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          dot={{ fill: '#10b981', r: 2 }}
+                          activeDot={{ r: 4 }}
+                        />
+                      </LineChart>
+                    ) : exercise.isBodyweight ? (
                       <LineChart data={exercise.data}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
@@ -292,7 +356,20 @@ export function GraphPage() {
                     <span className="text-gray-600">最新: {exercise.data[exercise.data.length - 1].date}</span>
                     <span className="text-gray-600">記録数: {exercise.data.length}回</span>
                   </div>
-                  {exercise.isBodyweight ? (
+                  {exercise.isCardio ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-blue-600">時間</span>
+                        <span className="font-medium">{exercise.data[exercise.data.length - 1].totalDuration}分</span>
+                      </div>
+                      {exercise.data[exercise.data.length - 1].totalDistance > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-emerald-600">距離</span>
+                          <span className="font-medium">{exercise.data[exercise.data.length - 1].totalDistance}km</span>
+                        </div>
+                      )}
+                    </>
+                  ) : exercise.isBodyweight ? (
                     <>
                       <div className="flex justify-between text-sm">
                         <span className="text-blue-600">最大回数</span>

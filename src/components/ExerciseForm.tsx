@@ -20,6 +20,8 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const [lastRecord, setLastRecord] = useState<LastRecord | null>(null)
   const weightRefs = useRef<(HTMLInputElement | null)[]>([])
   const repsRefs = useRef<(HTMLInputElement | null)[]>([])
+  const durationRef = useRef<HTMLInputElement | null>(null)
+  const distanceRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
@@ -30,6 +32,12 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     if (!name.trim()) return false
     const master = masterExercises.find((ex) => ex.name === name.trim())
     return master?.isBodyweight || false
+  }, [name, masterExercises])
+
+  const isCardio = useMemo(() => {
+    if (!name.trim()) return false
+    const master = masterExercises.find((ex) => ex.name === name.trim())
+    return master?.isCardio || false
   }, [name, masterExercises])
 
   useEffect(() => {
@@ -104,11 +112,20 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   function handleNameKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (isBodyweight) {
+      if (isCardio) {
+        durationRef.current?.focus()
+      } else if (isBodyweight) {
         repsRefs.current[0]?.focus()
       } else {
         weightRefs.current[0]?.focus()
       }
+    }
+  }
+
+  function handleDurationKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      distanceRef.current?.focus()
     }
   }
 
@@ -147,7 +164,12 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
       alert('種目名を入力してください')
       return
     }
-    if (isBodyweight) {
+    if (isCardio) {
+      if (!sets[0]?.duration || sets[0].duration <= 0) {
+        alert('時間を正しく入力してください')
+        return
+      }
+    } else if (isBodyweight) {
       if (sets.some(s => s.reps <= 0)) {
         alert('回数を正しく入力してください')
         return
@@ -202,85 +224,139 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
             </button>
           </div>
           <div className="text-sm text-blue-600">
-            {lastRecord.sets.map((s, i) => (
-              <span key={i}>
-                {i > 0 && ' / '}
-                {isBodyweight ? `${s.reps}回` : `${s.weight}kg×${s.reps}`}
+            {isCardio ? (
+              <span>
+                {lastRecord.sets[0]?.duration}分
+                {lastRecord.sets[0]?.distance ? ` / ${lastRecord.sets[0].distance}km` : ''}
               </span>
-            ))}
+            ) : (
+              lastRecord.sets.map((s, i) => (
+                <span key={i}>
+                  {i > 0 && ' / '}
+                  {isBodyweight ? `${s.reps}回` : `${s.weight}kg×${s.reps}`}
+                </span>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium mb-2">セット</label>
-        <div className="space-y-2">
-          {sets.map((set, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
-              {!isBodyweight && (
-                <>
-                  <input
-                    ref={(el) => { weightRefs.current[index] = el }}
-                    type="number"
-                    value={set.weight || ''}
-                    onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
-                    onKeyDown={(e) => handleWeightKeyDown(e, index)}
-                    onFocus={handleFocus}
-                    className="w-20 border rounded px-2 py-1 text-right"
-                    placeholder="0"
-                    min="0"
-                    step="0.5"
-                  />
-                  <span className="text-sm">kg</span>
-                  <span className="text-gray-400">×</span>
-                </>
-              )}
+      {isCardio ? (
+        <div>
+          <label className="block text-sm font-medium mb-2">記録</label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 w-12">時間</label>
               <input
-                ref={(el) => { repsRefs.current[index] = el }}
+                ref={durationRef}
                 type="number"
-                value={set.reps || ''}
-                onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
-                onKeyDown={(e) => handleRepsKeyDown(e, index)}
+                value={sets[0]?.duration || ''}
+                onChange={(e) => {
+                  const newSets = [...sets]
+                  newSets[0] = { ...newSets[0], duration: Number(e.target.value) }
+                  setSets(newSets)
+                }}
+                onKeyDown={handleDurationKeyDown}
                 onFocus={handleFocus}
-                className="w-16 border rounded px-2 py-1 text-right"
+                className="w-24 border rounded px-2 py-1 text-right"
                 placeholder="0"
                 min="1"
               />
-              <span className="text-sm">回</span>
-              <button
-                type="button"
-                onClick={() => handleClearSet(index)}
-                className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-gray-600"
-                title="クリア"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-              {sets.length > 1 && (
+              <span className="text-sm">分</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 w-12">距離</label>
+              <input
+                ref={distanceRef}
+                type="number"
+                value={sets[0]?.distance || ''}
+                onChange={(e) => {
+                  const newSets = [...sets]
+                  newSets[0] = { ...newSets[0], distance: Number(e.target.value) }
+                  setSets(newSets)
+                }}
+                onFocus={handleFocus}
+                className="w-24 border rounded px-2 py-1 text-right"
+                placeholder="0"
+                min="0"
+                step="0.1"
+              />
+              <span className="text-sm">km</span>
+              <span className="text-xs text-gray-400">（任意）</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-medium mb-2">セット</label>
+          <div className="space-y-2">
+            {sets.map((set, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
+                {!isBodyweight && (
+                  <>
+                    <input
+                      ref={(el) => { weightRefs.current[index] = el }}
+                      type="number"
+                      value={set.weight || ''}
+                      onChange={(e) => handleSetChange(index, 'weight', Number(e.target.value))}
+                      onKeyDown={(e) => handleWeightKeyDown(e, index)}
+                      onFocus={handleFocus}
+                      className="w-20 border rounded px-2 py-1 text-right"
+                      placeholder="0"
+                      min="0"
+                      step="0.5"
+                    />
+                    <span className="text-sm">kg</span>
+                    <span className="text-gray-400">×</span>
+                  </>
+                )}
+                <input
+                  ref={(el) => { repsRefs.current[index] = el }}
+                  type="number"
+                  value={set.reps || ''}
+                  onChange={(e) => handleSetChange(index, 'reps', Number(e.target.value))}
+                  onKeyDown={(e) => handleRepsKeyDown(e, index)}
+                  onFocus={handleFocus}
+                  className="w-16 border rounded px-2 py-1 text-right"
+                  placeholder="0"
+                  min="1"
+                />
+                <span className="text-sm">回</span>
                 <button
                   type="button"
-                  onClick={() => handleRemoveSet(index)}
-                  className="min-w-11 min-h-11 flex items-center justify-center text-red-400 hover:text-red-600"
-                  title="削除"
+                  onClick={() => handleClearSet(index)}
+                  className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  title="クリア"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
-              )}
-            </div>
-          ))}
+                {sets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSet(index)}
+                    className="min-w-11 min-h-11 flex items-center justify-center text-red-400 hover:text-red-600"
+                    title="削除"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleAddSet}
+            className="mt-2 text-blue-600 text-sm hover:underline"
+          >
+            + セットを追加
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleAddSet}
-          className="mt-2 text-blue-600 text-sm hover:underline"
-        >
-          + セットを追加
-        </button>
-      </div>
+      )}
 
       <div className="flex gap-2">
         <button

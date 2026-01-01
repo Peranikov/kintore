@@ -42,6 +42,11 @@ export function HomePage() {
     return master?.isBodyweight || false
   }
 
+  function isCardioExercise(name: string): boolean {
+    const master = exerciseMasters?.find((m) => m.name === name)
+    return master?.isCardio || false
+  }
+
   async function handleAddExercise(exercise: Exercise) {
     const now = Date.now()
 
@@ -65,7 +70,14 @@ export function HomePage() {
     setIsAddingExercise(false)
   }
 
-  function formatSets(sets: Set[], isBodyweight: boolean): string {
+  function formatSets(sets: Set[], isBodyweight: boolean, isCardio: boolean): string {
+    if (isCardio) {
+      const s = sets[0]
+      if (!s) return ''
+      const parts = [`${s.duration}分`]
+      if (s.distance) parts.push(`${s.distance}km`)
+      return parts.join(' / ')
+    }
     if (isBodyweight) {
       return sets.map(s => `${s.reps}回`).join(', ')
     }
@@ -87,7 +99,7 @@ export function HomePage() {
                 {todayLog.exercises.map((ex) => (
                   <li key={ex.id} className="border-b pb-2 last:border-b-0">
                     <div className="font-medium">{ex.name}</div>
-                    <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name))}</div>
+                    <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name), isCardioExercise(ex.name))}</div>
                   </li>
                 ))}
               </ul>

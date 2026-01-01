@@ -32,6 +32,11 @@ function generateExportText(
     return master?.isBodyweight || false
   }
 
+  function isCardioExercise(name: string): boolean {
+    const master = exerciseMasters.find((m) => m.name === name)
+    return master?.isCardio || false
+  }
+
   const lines: string[] = []
   lines.push(`# トレーニング記録 ${startDate} 〜 ${endDate}`)
   lines.push('')
@@ -44,14 +49,24 @@ function generateExportText(
 
     log.exercises.forEach((ex) => {
       const bodyweight = isBodyweightExercise(ex.name)
+      const cardio = isCardioExercise(ex.name)
       lines.push(`### ${ex.name}`)
-      ex.sets.forEach((set, i) => {
-        if (bodyweight) {
-          lines.push(`- ${i + 1}セット目: ${set.reps}回`)
-        } else {
-          lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+      if (cardio) {
+        const s = ex.sets[0]
+        if (s) {
+          const parts = [`${s.duration}分`]
+          if (s.distance) parts.push(`${s.distance}km`)
+          lines.push(`- ${parts.join(' / ')}`)
         }
-      })
+      } else {
+        ex.sets.forEach((set, i) => {
+          if (bodyweight) {
+            lines.push(`- ${i + 1}セット目: ${set.reps}回`)
+          } else {
+            lines.push(`- ${i + 1}セット目: ${set.weight}kg × ${set.reps}回`)
+          }
+        })
+      }
       lines.push('')
     })
 

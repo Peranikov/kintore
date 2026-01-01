@@ -182,6 +182,8 @@ describe('mergeExerciseData', () => {
       estimated1RM: 80,
       maxReps: 10,
       totalReps: 10,
+      totalDuration: 0,
+      totalDistance: 0,
     }
     const newData = {
       maxWeight: 70,
@@ -189,6 +191,8 @@ describe('mergeExerciseData', () => {
       estimated1RM: 88.7,
       maxReps: 8,
       totalReps: 8,
+      totalDuration: 0,
+      totalDistance: 0,
     }
 
     const merged = mergeExerciseData(existing, newData)
@@ -198,6 +202,32 @@ describe('mergeExerciseData', () => {
     expect(merged.estimated1RM).toBe(88.7) // max
     expect(merged.maxReps).toBe(10) // max
     expect(merged.totalReps).toBe(18) // sum
+  })
+
+  it('有酸素運動のデータをマージする', () => {
+    const existing = {
+      maxWeight: 0,
+      totalVolume: 0,
+      estimated1RM: 0,
+      maxReps: 0,
+      totalReps: 0,
+      totalDuration: 30,
+      totalDistance: 5.0,
+    }
+    const newData = {
+      maxWeight: 0,
+      totalVolume: 0,
+      estimated1RM: 0,
+      maxReps: 0,
+      totalReps: 0,
+      totalDuration: 20,
+      totalDistance: 3.5,
+    }
+
+    const merged = mergeExerciseData(existing, newData)
+
+    expect(merged.totalDuration).toBe(50) // sum
+    expect(merged.totalDistance).toBe(8.5) // sum
   })
 })
 
