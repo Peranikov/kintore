@@ -4,9 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { generatePlan, getApiKey } from '../services/gemini'
 import type { GeneratedPlan } from '../services/gemini'
-import type { WorkoutLog, Exercise } from '../types'
+import type { WorkoutLog, Exercise, Set } from '../types'
 
 type Status = 'input' | 'loading' | 'preview' | 'error'
+
+interface LastRecord {
+  date: string
+  sets: Set[]
+}
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
@@ -18,6 +23,7 @@ export function PlanCreatePage() {
   const [memo, setMemo] = useState('')
   const [plan, setPlan] = useState<GeneratedPlan | null>(null)
   const [error, setError] = useState('')
+  const [lastRecords, setLastRecords] = useState<Map<string, LastRecord>>(new Map())
 
   const today = getTodayDate()
 
@@ -39,6 +45,23 @@ export function PlanCreatePage() {
     []
   )
 
+  // 前回記録を取得
+  const fetchLastRecords = useCallback(async (exerciseNames: string[]): Promise<Map<string, LastRecord>> => {
+    const logs = await db.workoutLogs.orderBy('date').reverse().toArray()
+    const records = new Map<string, LastRecord>()
+
+    for (const name of exerciseNames) {
+      for (const log of logs) {
+        const exercise = log.exercises.find(ex => ex.name === name)
+        if (exercise) {
+          records.set(name, { date: log.date, sets: exercise.sets })
+          break
+        }
+      }
+    }
+    return records
+  }, [])
+
   // プラン生成
   const handleGenerate = useCallback(async () => {
     setStatus('loading')
@@ -48,12 +71,18 @@ export function PlanCreatePage() {
     try {
       const generatedPlan = await generatePlan(memo)
       setPlan(generatedPlan)
+
+      // 前回記録を取得
+      const names = generatedPlan.exercises.map(ex => ex.name)
+      const records = await fetchLastRecords(names)
+      setLastRecords(records)
+
       setStatus('preview')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setStatus('error')
     }
-  }, [memo])
+  }, [memo, fetchLastRecords])
 
   // プランを採用してログに登録
   const handleAdopt = useCallback(async () => {
@@ -99,6 +128,7 @@ export function PlanCreatePage() {
     setStatus('input')
     setPlan(null)
     setError('')
+    setLastRecords(new Map())
   }, [])
 
   // 自重種目かどうか判定
@@ -106,6 +136,32 @@ export function PlanCreatePage() {
     const master = exerciseMasters?.find(m => m.name === name)
     return master?.isBodyweight || false
   }, [exerciseMasters])
+
+  // 有酸素種目かどうか判定
+  const isCardio = useCallback((name: string): boolean => {
+    const master = exerciseMasters?.find(m => m.name === name)
+    return master?.isCardio || false
+  }, [exerciseMasters])
+
+  // セットを表示用にフォーマット
+  const formatSets = useCallback((sets: Set[], isBw: boolean, isCd: boolean): string => {
+    if (isCd) {
+      // 有酸素は最初のセットのみ
+      const s = sets[0]
+      if (!s) return ''
+      if (s.distance) {
+        return `${s.duration}分 / ${s.distance}km`
+      }
+      return `${s.duration}分`
+    }
+
+    return sets.map((s) => {
+      if (isBw || s.weight === 0) {
+        return `${s.reps}回`
+      }
+      return `${s.weight}kg×${s.reps}回`
+    }).join(', ')
+  }, [])
 
   // APIキーが未設定の場合
   if (apiKeyExists === false) {
@@ -217,22 +273,32 @@ export function PlanCreatePage() {
               )}
 
               <ul className="space-y-3">
-                {plan.exercises.map((ex, index) => (
-                  <li key={index} className="border-b pb-3 last:border-b-0 last:pb-0">
-                    <div className="font-medium text-gray-800">{ex.name}</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {ex.sets.map((s, i) => {
-                        const isBw = isBodyweight(ex.name)
-                        return (
-                          <span key={i}>
-                            {i > 0 && ', '}
-                            {isBw || s.weight === 0 ? `${s.reps}回` : `${s.weight}kg×${s.reps}回`}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </li>
-                ))}
+                {plan.exercises.map((ex, index) => {
+                  const lastRecord = lastRecords.get(ex.name)
+                  const isBw = isBodyweight(ex.name)
+                  const isCd = isCardio(ex.name)
+
+                  return (
+                    <li key={index} className="border-b pb-3 last:border-b-0 last:pb-0">
+                      <div className="font-medium text-gray-800">{ex.name}</div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        AI提案: {ex.sets.map((s, i) => {
+                          return (
+                            <span key={i}>
+                              {i > 0 && ', '}
+                              {isBw || s.weight === 0 ? `${s.reps}回` : `${s.weight}kg×${s.reps}回`}
+                            </span>
+                          )
+                        })}
+                      </div>
+                      {lastRecord && (
+                        <div className="text-sm text-gray-400 mt-1">
+                          前回 ({lastRecord.date}): {formatSets(lastRecord.sets, isBw, isCd)}
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </section>
 
