@@ -24,6 +24,7 @@ export function PlanCreatePage() {
   const [plan, setPlan] = useState<GeneratedPlan | null>(null)
   const [error, setError] = useState('')
   const [lastRecords, setLastRecords] = useState<Map<string, LastRecord>>(new Map())
+  const [feedback, setFeedback] = useState('')
 
   const today = getTodayDate()
 
@@ -123,12 +124,39 @@ export function PlanCreatePage() {
     }
   }, [plan, todayLog, today, navigate])
 
-  // 再生成
-  const handleRegenerate = useCallback(() => {
+  // フィードバック付き再生成
+  const handleRegenerate = useCallback(async () => {
+    setStatus('loading')
+    setError('')
+
+    try {
+      // フィードバックを含めたプロンプトで再生成
+      const combinedMemo = feedback
+        ? `${memo}\n\n【修正指示】\n${feedback}`
+        : memo
+      const generatedPlan = await generatePlan(combinedMemo)
+      setPlan(generatedPlan)
+
+      // 前回記録を取得
+      const names = generatedPlan.exercises.map(ex => ex.name)
+      const records = await fetchLastRecords(names)
+      setLastRecords(records)
+
+      setFeedback('') // フィードバックをクリア
+      setStatus('preview')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStatus('error')
+    }
+  }, [memo, feedback, fetchLastRecords])
+
+  // 最初からやり直す
+  const handleReset = useCallback(() => {
     setStatus('input')
     setPlan(null)
     setError('')
     setLastRecords(new Map())
+    setFeedback('')
   }, [])
 
   // 自重種目かどうか判定
@@ -302,6 +330,18 @@ export function PlanCreatePage() {
               </ul>
             </section>
 
+            {/* フィードバック入力 */}
+            <section className="bg-white rounded-lg shadow p-4">
+              <h3 className="font-bold text-gray-700 mb-2">修正指示（任意）</h3>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                rows={2}
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm"
+                placeholder="例: 胸の種目を増やして / 時間を短くして"
+              />
+            </section>
+
             <div className="flex gap-3">
               <button
                 onClick={handleRegenerate}
@@ -317,9 +357,17 @@ export function PlanCreatePage() {
               </button>
             </div>
 
-            <p className="text-sm text-gray-500 text-center">
-              「採用する」をタップすると、今日のログに追加されます
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-gray-500">
+                「採用する」をタップすると、今日のログに追加されます
+              </p>
+              <button
+                onClick={handleReset}
+                className="text-sm text-gray-400 underline"
+              >
+                最初からやり直す
+              </button>
+            </div>
           </>
         )}
 
@@ -332,7 +380,7 @@ export function PlanCreatePage() {
             </div>
 
             <button
-              onClick={handleRegenerate}
+              onClick={handleReset}
               className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-medium"
             >
               やり直す
