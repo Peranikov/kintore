@@ -62,6 +62,9 @@ export function PlanCreatePage() {
     scrollToBottom()
   }, [messages, isLoading, scrollToBottom])
 
+  // 初回プラン自動生成フラグ
+  const [hasInitialized, setHasInitialized] = useState(false)
+
   // 前回記録を取得
   const fetchLastRecords = useCallback(async (exerciseNames: string[]): Promise<Map<string, LastRecord>> => {
     const logs = await db.workoutLogs.orderBy('date').reverse().toArray()
@@ -78,6 +81,46 @@ export function PlanCreatePage() {
     }
     return records
   }, [])
+
+  // 初回プラン自動生成
+  useEffect(() => {
+    if (hasInitialized || apiKeyExists !== true || !exerciseMasters) return
+
+    const generateInitialPlan = async () => {
+      setHasInitialized(true)
+      setIsLoading(true)
+
+      try {
+        const generatedPlan = await generatePlan('')
+        setCurrentPlan(generatedPlan)
+
+        const names = generatedPlan.exercises.map(ex => ex.name)
+        const records = await fetchLastRecords(names)
+        setLastRecords(records)
+
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: generatedPlan.advice || '今日のトレーニングプランを作成しました。調整があればメッセージを送ってください。',
+          plan: generatedPlan,
+        }
+
+        setMessages([assistantMessage])
+      } catch (e) {
+        const errorMessage: ChatMessage = {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: e instanceof Error ? e.message : String(e),
+          isError: true,
+        }
+        setMessages([errorMessage])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    generateInitialPlan()
+  }, [hasInitialized, apiKeyExists, exerciseMasters, fetchLastRecords])
 
   // メッセージ送信
   const handleSend = useCallback(async () => {
@@ -262,16 +305,14 @@ export function PlanCreatePage() {
       {/* メッセージエリア */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-screen-md mx-auto px-4 py-4 space-y-4">
-          {/* 初期メッセージ */}
-          {messages.length === 0 && !isLoading && (
+          {/* 初期ローディング */}
+          {messages.length === 0 && isLoading && (
             <div className="text-center py-8 text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p className="text-sm">今日のトレーニングプランを作成します</p>
-              <p className="text-xs mt-2 text-gray-400">
-                体調やリクエストを入力してください
-              </p>
+              <p className="text-sm">プランを作成中...</p>
             </div>
           )}
 
@@ -371,7 +412,7 @@ export function PlanCreatePage() {
             onKeyDown={handleKeyDown}
             rows={1}
             className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-            placeholder={messages.length === 0 ? "例: 胸を鍛えたい、30分で終わるメニュー" : "修正指示を入力..."}
+            placeholder="例: 胸の種目を増やして / 時間を短くして"
             disabled={isLoading}
           />
           <button
