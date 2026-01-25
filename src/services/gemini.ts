@@ -418,6 +418,10 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
         maxOutputTokens: 2048,
         responseMimeType: 'application/json',
         responseSchema: PLAN_RESPONSE_SCHEMA,
+        // Gemini 2.5 Flashの思考機能を無効化（トークン効率化）
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     }),
   })
