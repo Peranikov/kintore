@@ -4,3 +4,10 @@
 @theme {
   --font-sans: "Inter", "Zen Kaku Gothic New", system-ui, sans-serif;
 }
+
+/* iPhoneでの入力時自動ズームを防止（16px未満だとズームする） */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
