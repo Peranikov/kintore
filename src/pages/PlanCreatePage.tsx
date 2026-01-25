@@ -403,7 +403,7 @@ export function PlanCreatePage() {
       )}
 
       {/* 入力エリア */}
-      <div className="bg-white border-t px-4 py-3 flex-shrink-0">
+      <div className="bg-white border-t px-4 pt-3 flex-shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-screen-md mx-auto flex gap-2">
           <textarea
             ref={inputRef}
@@ -412,7 +412,7 @@ export function PlanCreatePage() {
             onKeyDown={handleKeyDown}
             rows={1}
             className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-            placeholder="例: 胸の種目を増やして / 時間を短くして"
+            placeholder="修正の指示を入力..."
             disabled={isLoading}
           />
           <button
