@@ -289,6 +289,13 @@ iOSヒューマンインターフェースガイドラインに準拠:
 - iOS Safariでの自動ズーム防止のため、input/textarea/selectは`font-size: 16px`以上を使用
 - 16px未満の場合、iOSでフォーカス時に自動ズームが発生する
 
+### iOSセーフエリア
+iPhoneのノッチ/Dynamic Island・ホームインジケータを避けるため、セーフエリアに準拠:
+- viewportに`viewport-fit=cover`を設定
+- ヘッダー: `padding-top: env(safe-area-inset-top)`
+- フッター/下部固定要素: `padding-bottom: env(safe-area-inset-bottom)`
+- 最小値を確保する場合: `max(1rem, env(safe-area-inset-bottom))`
+
 ## PWA要件
 
 - オフライン動作可能
