@@ -247,7 +247,11 @@ ${previousLogs.length > 0 ? formatWorkoutLogs(previousLogs) : 'まだ過去の�
       ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
+        // Gemini 2.5 Flashの思考機能を無効化（トークン効率化）
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     }),
   })
@@ -363,7 +367,11 @@ ${formatWorkoutLogs(recentLogs.slice(0, 5))}
       ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
+        // Gemini 2.5 Flashの思考機能を無効化（トークン効率化）
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     }),
   })
