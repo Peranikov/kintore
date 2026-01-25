@@ -289,7 +289,7 @@ export function PlanCreatePage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-gray-100">
+    <div className="h-dvh flex flex-col bg-gray-100">
       {/* ヘッダー */}
       <header className="bg-white shadow-sm sticky top-0 z-10" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="max-w-screen-md mx-auto px-4 py-4 flex items-center">
