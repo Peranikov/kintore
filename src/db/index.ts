@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { WorkoutLog, ExerciseMaster, AppSettings } from '../types'
+import { EXERCISE_MUSCLE_MAP } from './exerciseMuscleMap'
 
 const db = new Dexie('TrainingLogDB') as Dexie & {
   workoutLogs: EntityTable<WorkoutLog, 'id'>
@@ -60,6 +61,22 @@ db.version(6).stores({
     const existing = await table.where('name').equals(name).first()
     if (existing && !existing.isCardio) {
       await table.update(existing.id, { isCardio: true })
+    }
+  }
+})
+
+// Version 7: ExerciseMasterにtargetMuscles（対象部位）を追加
+db.version(7).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+}).upgrade(async (tx) => {
+  const table = tx.table('exerciseMasters')
+  const exercises = await table.toArray()
+  for (const exercise of exercises) {
+    const targetMuscles = EXERCISE_MUSCLE_MAP[exercise.name]
+    if (targetMuscles && targetMuscles.length > 0) {
+      await table.update(exercise.id, { targetMuscles })
     }
   }
 })

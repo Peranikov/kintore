@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
+import { WeeklyVolume } from '../components/WeeklyVolume'
+import { calculateWeeklyVolume } from '../utils/volumeCalculations'
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
@@ -36,6 +38,16 @@ export function HomePage() {
     () => db.exerciseMasters.toArray(),
     []
   )
+
+  const allLogs = useLiveQuery(
+    () => db.workoutLogs.toArray(),
+    []
+  )
+
+  const weeklyVolumeData = useMemo(() => {
+    if (!allLogs || !exerciseMasters) return []
+    return calculateWeeklyVolume(allLogs, exerciseMasters)
+  }, [allLogs, exerciseMasters])
 
   function isBodyweightExercise(name: string): boolean {
     const master = exerciseMasters?.find((m) => m.name === name)
@@ -94,6 +106,12 @@ export function HomePage() {
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
+        {weeklyVolumeData.length > 0 && (
+          <section className="mb-6">
+            <WeeklyVolume data={weeklyVolumeData} compact />
+          </section>
+        )}
+
         <section className="mb-6">
           <h2 className="text-lg font-semibold mb-3">今日のトレーニング</h2>
           <div className="bg-white rounded-lg shadow p-4">

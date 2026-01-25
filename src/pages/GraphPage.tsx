@@ -14,8 +14,10 @@ import {
 } from 'recharts'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
+import { WeeklyVolume } from '../components/WeeklyVolume'
 import { generateProgressEvaluation, getApiKey } from '../services/gemini'
 import { buildExerciseChartData } from '../utils/graphCalculations'
+import { calculateWeeklyVolume } from '../utils/volumeCalculations'
 
 export function GraphPage() {
   const logs = useLiveQuery(() => db.workoutLogs.toArray(), [])
@@ -58,6 +60,11 @@ export function GraphPage() {
     if (!logs || !exerciseMasters) return []
     return buildExerciseChartData(logs, exerciseMasters, threeMonthsAgo)
   }, [logs, threeMonthsAgo, exerciseMasters])
+
+  const weeklyVolumeData = useMemo(() => {
+    if (!logs || !exerciseMasters) return []
+    return calculateWeeklyVolume(logs, exerciseMasters)
+  }, [logs, exerciseMasters])
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
@@ -136,6 +143,13 @@ export function GraphPage() {
                 </button>
               )}
             </div>
+          </section>
+        )}
+
+        {/* 週間ボリュームセクション */}
+        {weeklyVolumeData.length > 0 && (
+          <section className="mb-6">
+            <WeeklyVolume data={weeklyVolumeData} />
           </section>
         )}
 
