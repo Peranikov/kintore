@@ -99,3 +99,12 @@ export interface ProgressComparison {
   totalDuration?: ProgressMetric
   totalDistance?: ProgressMetric
 }
+
+// 停滞情報
+export interface StagnationInfo {
+  exerciseName: string
+  metric: string           // "推定1RM", "最大回数", "時間" など
+  value: number
+  unit: string
+  weeks: number            // 停滞週数
+}

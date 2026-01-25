@@ -1,5 +1,6 @@
 import { db } from '../db'
-import type { WorkoutLog, ExerciseMaster } from '../types'
+import type { WorkoutLog, ExerciseMaster, StagnationInfo } from '../types'
+import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
@@ -106,7 +107,8 @@ export function buildPrompt(
   profile: string | null,
   exerciseMasters: ExerciseMaster[],
   recentLogs: WorkoutLog[],
-  userMemo: string
+  userMemo: string,
+  stagnationInfos: StagnationInfo[] = []
 ): string {
   const systemPrompt = `あなたは経験豊富なパーソナルトレーナーです。
 ユーザーの情報と過去のトレーニング履歴を考慮し、今日のトレーニングプランを提案してください。
@@ -115,7 +117,8 @@ export function buildPrompt(
 1. 提案する種目は「利用可能な器具」リストに存在するもののみを使用してください
 2. 過去の履歴から適切な重量・回数を推測してください
 3. 「前回のトレーニング評価」がある場合は、その改善点を考慮してプランを作成してください
-4. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
+5. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
@@ -143,11 +146,16 @@ export function buildPrompt(
     ? `\n\n■ 前回のトレーニング評価（改善点を考慮してください）\n${latestEvaluation}`
     : ''
 
+  // 停滞情報をプロンプトに追加
+  const stagnationSection = stagnationInfos.length > 0
+    ? `\n\n■ ${formatStagnationForPrompt(stagnationInfos)}`
+    : ''
+
   const memoSection = userMemo.trim()
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${memoSection}`
 }
 
 // JSONを抽出してパース
@@ -398,17 +406,22 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
     throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
   }
 
-  const [profile, exerciseMasters, recentLogs] = await Promise.all([
+  // 停滞検出用に多めのログを取得
+  const [profile, exerciseMasters, recentLogs, allRecentLogs] = await Promise.all([
     getUserProfile(),
     db.exerciseMasters.toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(7).toArray(),
+    db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),  // 停滞検出用
   ])
 
   if (exerciseMasters.length === 0) {
     throw new Error('器具マスタが空です。先に種目を登録してください。')
   }
 
-  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo)
+  // 停滞を検出
+  const stagnationInfos = detectStagnation(allRecentLogs, exerciseMasters)
+
+  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos)
 
   const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
