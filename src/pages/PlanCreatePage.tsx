@@ -289,9 +289,9 @@ export function PlanCreatePage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="min-h-dvh flex flex-col bg-gray-100">
       {/* ヘッダー */}
-      <header className="bg-white shadow-sm flex-shrink-0" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+      <header className="bg-white shadow-sm sticky top-0 z-10" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="max-w-screen-md mx-auto px-4 py-4 flex items-center">
           <Link to="/" className="mr-4 text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
