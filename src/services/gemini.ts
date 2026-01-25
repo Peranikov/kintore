@@ -386,6 +386,7 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
       },
     }),
   })
