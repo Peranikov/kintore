@@ -87,7 +87,10 @@ export function HomePage() {
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
       <header className="bg-blue-600 text-white p-4">
-        <h1 className="text-xl font-bold">Kintore</h1>
+        <div className="flex items-end justify-between">
+          <h1 className="text-xl font-bold">Kintore</h1>
+          <span className="text-xs opacity-60">{__COMMIT_HASH__}</span>
+        </div>
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
