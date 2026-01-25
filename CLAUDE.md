@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-トレーニングログPWAアプリ。詳細仕様は `docs/SPEC.md` を参照。
+トレーニングログPWAアプリ。詳細仕様は @docs/SPEC.md を参照。
 
 ## Commands
 
