@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import Markdown from 'react-markdown'
@@ -6,7 +6,9 @@ import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
+import { ProgressIndicator } from '../components/ProgressIndicator'
 import { generateWorkoutEvaluation, getApiKey } from '../services/gemini'
+import { calculateProgress } from '../utils/progressCalculations'
 
 export function LogDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +23,7 @@ export function LogDetailPage() {
   const [evaluationInitialized, setEvaluationInitialized] = useState(false)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
+  const [previousRecords, setPreviousRecords] = useState<Record<string, Set[]>>({})
 
   const log = useLiveQuery(
     async () => {
@@ -65,6 +68,32 @@ export function LogDetailPage() {
     setEvaluationGeneratedAt(log.evaluationGeneratedAt || null)
     setEvaluationInitialized(true)
   }
+
+  // 前回記録を取得
+  useEffect(() => {
+    if (!log) return
+
+    async function fetchPreviousRecords() {
+      const allLogs = await db.workoutLogs.orderBy('date').reverse().toArray()
+      const records: Record<string, Set[]> = {}
+
+      for (const exercise of log!.exercises) {
+        // 現在のログより前の日付のログから同じ種目を探す
+        for (const otherLog of allLogs) {
+          if (otherLog.date >= log!.date) continue
+          const found = otherLog.exercises.find(ex => ex.name === exercise.name)
+          if (found) {
+            records[exercise.name] = found.sets
+            break
+          }
+        }
+      }
+
+      setPreviousRecords(records)
+    }
+
+    fetchPreviousRecords()
+  }, [log])
 
   async function handleDeleteLog() {
     if (!log?.id || !confirm('このログを削除しますか？')) return
@@ -278,6 +307,19 @@ export function LogDetailPage() {
                         <div>
                           <div className="font-medium">{ex.name}</div>
                           <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name), isCardioExercise(ex.name))}</div>
+                          {previousRecords[ex.name] && (
+                            <div className="mt-1">
+                              <ProgressIndicator
+                                comparison={calculateProgress(
+                                  ex.sets,
+                                  previousRecords[ex.name],
+                                  isBodyweightExercise(ex.name),
+                                  isCardioExercise(ex.name)
+                                )}
+                                compact
+                              />
+                            </div>
+                          )}
                         </div>
                         <div className="flex">
                           <button

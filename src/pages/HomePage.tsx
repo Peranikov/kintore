@@ -6,7 +6,9 @@ import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
 import { WeeklyVolume } from '../components/WeeklyVolume'
+import { ProgressIndicator } from '../components/ProgressIndicator'
 import { calculateWeeklyVolume } from '../utils/volumeCalculations'
+import { calculateProgress } from '../utils/progressCalculations'
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
@@ -48,6 +50,28 @@ export function HomePage() {
     if (!allLogs || !exerciseMasters) return []
     return calculateWeeklyVolume(allLogs, exerciseMasters)
   }, [allLogs, exerciseMasters])
+
+  // 今日の種目の前回記録を取得
+  const previousRecords = useMemo(() => {
+    if (!todayLog || !allLogs) return {}
+
+    const records: Record<string, Set[]> = {}
+    const sortedLogs = [...allLogs].sort((a, b) => b.date.localeCompare(a.date))
+
+    for (const exercise of todayLog.exercises) {
+      // 今日より前のログから同じ種目を探す
+      for (const otherLog of sortedLogs) {
+        if (otherLog.date >= today) continue
+        const found = otherLog.exercises.find(ex => ex.name === exercise.name)
+        if (found) {
+          records[exercise.name] = found.sets
+          break
+        }
+      }
+    }
+
+    return records
+  }, [todayLog, allLogs, today])
 
   function isBodyweightExercise(name: string): boolean {
     const master = exerciseMasters?.find((m) => m.name === name)
@@ -121,6 +145,19 @@ export function HomePage() {
                   <li key={ex.id} className="border-b pb-2 last:border-b-0">
                     <div className="font-medium">{ex.name}</div>
                     <div className="text-sm text-gray-600">{formatSets(ex.sets, isBodyweightExercise(ex.name), isCardioExercise(ex.name))}</div>
+                    {previousRecords[ex.name] && (
+                      <div className="mt-1">
+                        <ProgressIndicator
+                          comparison={calculateProgress(
+                            ex.sets,
+                            previousRecords[ex.name],
+                            isBodyweightExercise(ex.name),
+                            isCardioExercise(ex.name)
+                          )}
+                          compact
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

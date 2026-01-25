@@ -73,3 +73,29 @@ export interface AppSettings {
   key: string
   value: string
 }
+
+// 進捗状態
+export type ProgressStatus = 'up' | 'same' | 'down'
+
+// 個別指標の進捗
+export interface ProgressMetric {
+  current: number
+  previous: number
+  diff: number
+  diffPercent: number
+  status: ProgressStatus
+}
+
+// 進捗比較結果
+export interface ProgressComparison {
+  // ウェイトトレーニング用
+  maxWeight?: ProgressMetric
+  totalVolume?: ProgressMetric
+  estimated1RM?: ProgressMetric
+  // 自重トレーニング用
+  maxReps?: ProgressMetric
+  totalReps?: ProgressMetric
+  // 有酸素運動用
+  totalDuration?: ProgressMetric
+  totalDistance?: ProgressMetric
+}

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { db } from '../db'
 import type { Exercise, Set, ExerciseMaster } from '../types'
+import { calculateProgress } from '../utils/progressCalculations'
+import { ProgressIndicator } from './ProgressIndicator'
 
 interface LastRecord {
   date: string
@@ -39,6 +41,17 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
     const master = masterExercises.find((ex) => ex.name === name.trim())
     return master?.isCardio || false
   }, [name, masterExercises])
+
+  // 前回比較を計算
+  const progressComparison = useMemo(() => {
+    if (!lastRecord || !sets.length) return null
+    // 有効な入力があるかチェック
+    const hasValidInput = isCardio
+      ? (sets[0]?.duration ?? 0) > 0
+      : sets.some(s => (isBodyweight ? s.reps > 0 : (s.weight > 0 || s.reps > 0)))
+    if (!hasValidInput) return null
+    return calculateProgress(sets, lastRecord.sets, isBodyweight, isCardio)
+  }, [sets, lastRecord, isBodyweight, isCardio])
 
   useEffect(() => {
     // 編集モードまたは名前が空の場合は記録を取得しない
@@ -238,6 +251,12 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
               ))
             )}
           </div>
+          {progressComparison && (
+            <div className="mt-2 pt-2 border-t border-blue-200">
+              <span className="text-xs text-blue-500 mr-2">前回比:</span>
+              <ProgressIndicator comparison={progressComparison} compact />
+            </div>
+          )}
         </div>
       )}
 
