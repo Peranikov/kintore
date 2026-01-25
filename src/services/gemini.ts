@@ -1,7 +1,37 @@
 import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster } from '../types'
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+
+// Gemini 2.5用のJSON Schemaを定義
+const PLAN_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    exercises: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '種目名' },
+          sets: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                weight: { type: 'number', description: '重量（kg）。自重の場合は0' },
+                reps: { type: 'number', description: '回数' },
+              },
+              required: ['weight', 'reps'],
+            },
+          },
+        },
+        required: ['name', 'sets'],
+      },
+    },
+    advice: { type: 'string', description: '今日のトレーニングに関するアドバイス' },
+  },
+  required: ['exercises'],
+}
 
 export interface GeneratedExercise {
   name: string
@@ -386,6 +416,8 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+        responseSchema: PLAN_RESPONSE_SCHEMA,
       },
     }),
   })
