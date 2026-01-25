@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import Markdown from 'react-markdown'
 import { db } from '../db'
 import { generatePlan, getApiKey } from '../services/gemini'
 import type { GeneratedPlan } from '../services/gemini'
@@ -331,7 +332,13 @@ export function PlanCreatePage() {
                     : 'bg-white text-gray-800 shadow rounded-bl-md'
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'user' ? (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none text-gray-700">
+                    <Markdown>{message.content}</Markdown>
+                  </div>
+                )}
 
                 {/* プラン表示 */}
                 {message.plan && (
