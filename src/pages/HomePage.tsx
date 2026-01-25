@@ -123,6 +123,16 @@ export function HomePage() {
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
+        <Link
+          to="/plan-create"
+          className="mb-6 block w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-lg shadow-lg hover:from-purple-700 hover:to-indigo-700 flex items-center justify-center gap-2 font-medium"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          AIでプランを作成
+        </Link>
+
         <section className="mb-6">
           <h2 className="text-lg font-semibold mb-3">今日のトレーニング</h2>
           <div className="bg-white rounded-lg shadow p-4">
@@ -178,16 +188,6 @@ export function HomePage() {
               </Link>
             )}
           </div>
-
-          <Link
-            to="/plan-create"
-            className="mt-4 block w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-lg shadow-lg hover:from-purple-700 hover:to-indigo-700 flex items-center justify-center gap-2 font-medium"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            AIでプランを作成
-          </Link>
         </section>
 
         <section>
