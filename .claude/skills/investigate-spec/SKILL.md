@@ -1,6 +1,7 @@
 ---
 name: investigate-spec
 description: 機能の実装・修正・検索を行う前にdocs/SPEC.mdを調査する。新機能追加、既存機能の修正、バグ修正、コード探索時に自動発動。
+auto-invoke: true
 ---
 
 # SPEC.md 事前調査スキル

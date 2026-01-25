@@ -1,6 +1,7 @@
 ---
 name: update-spec
 description: 機能追加や改修後にdocs/SPEC.mdを更新する。新機能の実装、UI変更、データモデル変更、キーボード操作変更などを行った際に使用。
+disable-model-invocation: true
 ---
 
 # SPEC.md 更新スキル
