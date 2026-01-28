@@ -1,6 +1,7 @@
 import { db } from '../db'
-import type { WorkoutLog, ExerciseMaster, StagnationInfo } from '../types'
+import type { WorkoutLog, ExerciseMaster, StagnationInfo, DeloadSuggestion } from '../types'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
+import { generateDeloadSuggestion, formatDeloadForPrompt } from '../utils/periodization'
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
@@ -108,7 +109,8 @@ export function buildPrompt(
   exerciseMasters: ExerciseMaster[],
   recentLogs: WorkoutLog[],
   userMemo: string,
-  stagnationInfos: StagnationInfo[] = []
+  stagnationInfos: StagnationInfo[] = [],
+  deloadSuggestion: DeloadSuggestion | null = null
 ): string {
   const systemPrompt = `あなたは経験豊富なパーソナルトレーナーです。
 ユーザーの情報と過去のトレーニング履歴を考慮し、今日のトレーニングプランを提案してください。
@@ -118,7 +120,8 @@ export function buildPrompt(
 2. 過去の履歴から適切な重量・回数を推測してください
 3. 「前回のトレーニング評価」がある場合は、その改善点を考慮してプランを作成してください
 4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
-5. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+5. 「ディロード推奨」がある場合は、ボリュームを通常の50-60%に抑えたプランを提案してください
+6. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
@@ -151,11 +154,16 @@ export function buildPrompt(
     ? `\n\n■ ${formatStagnationForPrompt(stagnationInfos)}`
     : ''
 
+  // ディロード情報をプロンプトに追加
+  const deloadSection = deloadSuggestion
+    ? `\n\n■ ${formatDeloadForPrompt(deloadSuggestion)}`
+    : ''
+
   const memoSection = userMemo.trim()
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
 }
 
 // JSONを抽出してパース
@@ -406,12 +414,12 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
     throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
   }
 
-  // 停滞検出用に多めのログを取得
+  // 停滞検出・ディロード検出用に多めのログを取得
   const [profile, exerciseMasters, recentLogs, allRecentLogs] = await Promise.all([
     getUserProfile(),
     db.exerciseMasters.toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(7).toArray(),
-    db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),  // 停滞検出用
+    db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),  // 停滞・ディロード検出用
   ])
 
   if (exerciseMasters.length === 0) {
@@ -421,7 +429,10 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   // 停滞を検出
   const stagnationInfos = detectStagnation(allRecentLogs, exerciseMasters)
 
-  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos)
+  // ディロード推奨を検出
+  const deloadSuggestion = generateDeloadSuggestion(allRecentLogs, exerciseMasters)
+
+  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
 
   const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',

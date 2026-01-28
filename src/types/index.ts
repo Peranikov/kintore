@@ -108,3 +108,17 @@ export interface StagnationInfo {
   unit: string
   weeks: number            // 停滞週数
 }
+
+// パフォーマンス低下情報
+export interface PerformanceDecline {
+  exerciseName: string
+  declinePercent: number
+}
+
+// ディロード提案
+export interface DeloadSuggestion {
+  reason: 'consecutive_weeks' | 'performance_decline'
+  message: string
+  weeksTraining: number
+  performanceDecline?: PerformanceDecline[]
+}
