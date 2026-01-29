@@ -116,6 +116,40 @@ export function getVolumeStatusColor(status: VolumeStatus): string {
   }
 }
 
+// ボリュームに基づくアドバイスを生成
+export function generateVolumeAdvice(data: WeeklyVolumeData[]): string[] {
+  const advice: string[] = []
+
+  for (const d of data) {
+    const status = getVolumeStatus(d.totalSets)
+    if (status === 'excessive') {
+      advice.push(`${d.label}が${d.totalSets.toFixed(1)}セットで過多です。回復のためセット数を減らすことを検討してください`)
+    } else if (status === 'insufficient') {
+      advice.push(`${d.label}が${d.totalSets.toFixed(1)}セットで不足です。種目の追加を検討してください`)
+    }
+  }
+
+  return advice
+}
+
+// AIプロンプト用にボリューム状況をフォーマット
+export function formatVolumeForPrompt(data: WeeklyVolumeData[]): string | null {
+  const insufficient = data.filter(d => getVolumeStatus(d.totalSets) === 'insufficient')
+  const excessive = data.filter(d => getVolumeStatus(d.totalSets) === 'excessive')
+
+  if (insufficient.length === 0 && excessive.length === 0) return null
+
+  const parts: string[] = []
+  if (insufficient.length > 0) {
+    parts.push(`不足: ${insufficient.map(d => `${d.label}(${d.totalSets.toFixed(1)}セット)`).join(', ')}`)
+  }
+  if (excessive.length > 0) {
+    parts.push(`過多: ${excessive.map(d => `${d.label}(${d.totalSets.toFixed(1)}セット)`).join(', ')}`)
+  }
+
+  return `週間ボリューム状況（推奨: 各部位10-20セット/週）\n${parts.join('\n')}`
+}
+
 // 週の範囲を表示用文字列で取得
 export function formatWeekRange(targetDate: Date = new Date()): string {
   const start = getWeekStartDate(targetDate)

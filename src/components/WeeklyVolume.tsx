@@ -3,6 +3,7 @@ import type { WeeklyVolumeData } from '../utils/volumeCalculations'
 import {
   getVolumeStatus,
   formatWeekRange,
+  generateVolumeAdvice,
 } from '../utils/volumeCalculations'
 
 interface WeeklyVolumeProps {
@@ -12,6 +13,7 @@ interface WeeklyVolumeProps {
 
 export function WeeklyVolume({ data, compact = false }: WeeklyVolumeProps) {
   const [isExpanded, setIsExpanded] = useState(!compact)
+  const advice = generateVolumeAdvice(data)
 
   // トレーニングがある部位のみフィルタリング（詳細表示時は全部位表示）
   const filteredData = compact && !isExpanded
@@ -142,6 +144,27 @@ export function WeeklyVolume({ data, compact = false }: WeeklyVolumeProps) {
               過多: {data.filter(d => getVolumeStatus(d.totalSets) === 'excessive').length}部位
             </span>
           </div>
+        </div>
+      )}
+
+      {/* アドバイス */}
+      {advice.length > 0 && (isExpanded || !compact) && (
+        <div className="mt-3 space-y-1.5">
+          {advice.map((text, i) => {
+            const isExcessive = text.includes('過多')
+            return (
+              <div
+                key={i}
+                className={`text-xs px-3 py-2 rounded ${
+                  isExcessive
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-yellow-50 text-yellow-700'
+                }`}
+              >
+                {text}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
