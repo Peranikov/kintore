@@ -79,6 +79,16 @@ export async function saveUserProfile(profile: string): Promise<void> {
   }
 }
 
+// セットをフォーマット（有酸素運動対応）
+function formatSet(s: { weight: number; reps: number; duration?: number; distance?: number }): string {
+  if (s.duration != null) {
+    const parts = [`${s.duration}分`]
+    if (s.distance) parts.push(`${s.distance}km`)
+    return parts.join(' / ')
+  }
+  return s.weight > 0 ? `${s.weight}kg×${s.reps}回` : `${s.reps}回`
+}
+
 // トレーニング履歴をフォーマット
 export function formatWorkoutLogs(logs: WorkoutLog[]): string {
   if (logs.length === 0) {
@@ -87,9 +97,7 @@ export function formatWorkoutLogs(logs: WorkoutLog[]): string {
 
   return logs.map(log => {
     const exercises = log.exercises.map(ex => {
-      const sets = ex.sets.map(s =>
-        s.weight > 0 ? `${s.weight}kg×${s.reps}回` : `${s.reps}回`
-      ).join(', ')
+      const sets = ex.sets.map(s => formatSet(s)).join(', ')
       return `  - ${ex.name}: ${sets}`
     }).join('\n')
     return `【${log.date}】\n${exercises}`
@@ -99,7 +107,7 @@ export function formatWorkoutLogs(logs: WorkoutLog[]): string {
 // 器具マスタをフォーマット
 export function formatExerciseMasters(masters: ExerciseMaster[]): string {
   return masters.map(m => {
-    const suffix = m.isBodyweight ? '（自重）' : ''
+    const suffix = m.isBodyweight ? '（自重）' : m.isCardio ? '（有酸素）' : ''
     return `- ${m.name}${suffix}`
   }).join('\n')
 }
@@ -230,9 +238,7 @@ export async function generateWorkoutEvaluation(log: WorkoutLog): Promise<string
 
   // 今回のトレーニング内容をフォーマット
   const todayWorkout = log.exercises.map(ex => {
-    const sets = ex.sets.map(s =>
-      s.weight > 0 ? `${s.weight}kg×${s.reps}回` : `${s.reps}回`
-    ).join(', ')
+    const sets = ex.sets.map(s => formatSet(s)).join(', ')
     return `- ${ex.name}: ${sets}`
   }).join('\n')
 
@@ -312,35 +318,58 @@ export async function generateProgressEvaluation(): Promise<string> {
   }
 
   // 種目ごとの進捗データを集計
-  const exerciseProgress: { [name: string]: { dates: string[]; maxWeights: number[]; maxReps: number[]; isBodyweight: boolean } } = {}
+  const exerciseProgress: { [name: string]: { dates: string[]; maxWeights: number[]; maxReps: number[]; maxDurations: number[]; maxDistances: number[]; isBodyweight: boolean; isCardio: boolean } } = {}
 
   recentLogs.forEach(log => {
     log.exercises.forEach(ex => {
       const master = exerciseMasters.find(m => m.name === ex.name)
       const isBodyweight = master?.isBodyweight || false
+      const isCardio = master?.isCardio || false
 
       if (!exerciseProgress[ex.name]) {
-        exerciseProgress[ex.name] = { dates: [], maxWeights: [], maxReps: [], isBodyweight }
+        exerciseProgress[ex.name] = { dates: [], maxWeights: [], maxReps: [], maxDurations: [], maxDistances: [], isBodyweight, isCardio }
       }
-      const maxWeight = Math.max(...ex.sets.map(s => s.weight))
-      const maxReps = Math.max(...ex.sets.map(s => s.reps))
       exerciseProgress[ex.name].dates.push(log.date)
-      exerciseProgress[ex.name].maxWeights.push(maxWeight)
-      exerciseProgress[ex.name].maxReps.push(maxReps)
+
+      if (isCardio) {
+        const maxDuration = Math.max(...ex.sets.map(s => s.duration ?? 0))
+        const maxDistance = Math.max(...ex.sets.map(s => s.distance ?? 0))
+        exerciseProgress[ex.name].maxDurations.push(maxDuration)
+        exerciseProgress[ex.name].maxDistances.push(maxDistance)
+      } else {
+        const maxWeight = Math.max(...ex.sets.map(s => s.weight))
+        const maxReps = Math.max(...ex.sets.map(s => s.reps))
+        exerciseProgress[ex.name].maxWeights.push(maxWeight)
+        exerciseProgress[ex.name].maxReps.push(maxReps)
+      }
     })
   })
 
   // 進捗サマリを作成
   const progressSummary = Object.entries(exerciseProgress).map(([name, data]) => {
-    const first = { weight: data.maxWeights[data.maxWeights.length - 1], reps: data.maxReps[data.maxReps.length - 1] }
-    const last = { weight: data.maxWeights[0], reps: data.maxReps[0] }
-
-    if (data.isBodyweight) {
-      const repsDiff = last.reps - first.reps
-      return `- ${name}（自重）: ${first.reps}回 → ${last.reps}回（${repsDiff >= 0 ? '+' : ''}${repsDiff}回）`
+    if (data.isCardio) {
+      const firstDuration = data.maxDurations[data.maxDurations.length - 1]
+      const lastDuration = data.maxDurations[0]
+      const durationDiff = lastDuration - firstDuration
+      const distancePart = data.maxDistances.some(d => d > 0)
+        ? (() => {
+            const firstDist = data.maxDistances[data.maxDistances.length - 1]
+            const lastDist = data.maxDistances[0]
+            const distDiff = lastDist - firstDist
+            return `、距離: ${firstDist}km → ${lastDist}km（${distDiff >= 0 ? '+' : ''}${distDiff.toFixed(1)}km）`
+          })()
+        : ''
+      return `- ${name}（有酸素）: ${firstDuration}分 → ${lastDuration}分（${durationDiff >= 0 ? '+' : ''}${durationDiff}分）${distancePart}`
+    } else if (data.isBodyweight) {
+      const first = data.maxReps[data.maxReps.length - 1]
+      const last = data.maxReps[0]
+      const repsDiff = last - first
+      return `- ${name}（自重）: ${first}回 → ${last}回（${repsDiff >= 0 ? '+' : ''}${repsDiff}回）`
     } else {
-      const weightDiff = last.weight - first.weight
-      return `- ${name}: ${first.weight}kg → ${last.weight}kg（${weightDiff >= 0 ? '+' : ''}${weightDiff}kg）`
+      const first = data.maxWeights[data.maxWeights.length - 1]
+      const last = data.maxWeights[0]
+      const weightDiff = last - first
+      return `- ${name}: ${first}kg → ${last}kg（${weightDiff >= 0 ? '+' : ''}${weightDiff}kg）`
     }
   }).join('\n')
 
