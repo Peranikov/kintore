@@ -42,6 +42,7 @@
 | エクスポート | `/export` | 期間指定でのトレーニング記録エクスポート |
 | AI設定 | `/ai-settings` | Gemini APIキー・ユーザープロフィール設定 |
 | AIプラン作成 | `/plan-create` | AIによるトレーニングプラン生成 |
+| インポート | `/import` | エクスポートしたMarkdownテキストからのデータ復元 |
 
 ### 種目入力機能
 
@@ -98,6 +99,14 @@
 - クイック選択: 今月 / 3ヶ月 / 6ヶ月
 - プレビュー表示で内容確認
 - Web Share API対応（非対応ブラウザではクリップボードにコピー）
+
+### インポート機能（インポート画面）
+エクスポートしたMarkdown形式のテキストからトレーニング記録を復元:
+- テキストエリアにMarkdownを貼り付けて解析
+- 解析結果のプレビュー表示（日数・種目数・セット数）
+- 重複日付の検出と処理（スキップまたは上書きを選択可能）
+- 種目マスタに未登録の種目は自動追加（セットデータから自重/有酸素フラグも自動判定）
+- ウェイト・自重・有酸素の3種類を自動判別してパース
 
 ### グラフ機能
 
@@ -427,7 +436,8 @@ src/
 │   ├── ExerciseMasterPage.tsx
 │   ├── ExportPage.tsx
 │   ├── AISettingsPage.tsx     # AI設定
-│   └── PlanCreatePage.tsx     # AIプラン作成
+│   ├── PlanCreatePage.tsx     # AIプラン作成
+│   └── ImportPage.tsx         # インポート
 ├── services/      # 外部API連携
 │   └── gemini.ts  # Gemini API関連関数
 ├── db/            # Dexie.js データベース設定
@@ -436,7 +446,8 @@ src/
 │   ├── progressCalculations.ts  # 進捗比較計算
 │   ├── volumeCalculations.ts    # ボリューム計算
 │   ├── graphCalculations.ts     # グラフ用データ計算
-│   └── stagnationDetection.ts   # 停滞検出
+│   ├── stagnationDetection.ts   # 停滞検出
+│   └── importParser.ts          # Markdownインポートパーサー
 ├── App.tsx
 ├── main.tsx
 └── index.css

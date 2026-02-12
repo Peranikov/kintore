@@ -28,6 +28,13 @@ export function SettingsPage() {
             <span className="text-gray-400">&rarr;</span>
           </Link>
           <Link
+            to="/import"
+            className="flex items-center justify-between p-4 hover:bg-gray-50"
+          >
+            <span>トレーニング記録のインポート</span>
+            <span className="text-gray-400">&rarr;</span>
+          </Link>
+          <Link
             to="/ai-settings"
             className="flex items-center justify-between p-4 hover:bg-gray-50"
           >

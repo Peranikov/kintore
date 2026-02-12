@@ -9,6 +9,7 @@ import { ExportPage } from './pages/ExportPage'
 import { GeminiTestPage } from './pages/GeminiTestPage'
 import { AISettingsPage } from './pages/AISettingsPage'
 import { PlanCreatePage } from './pages/PlanCreatePage'
+import { ImportPage } from './pages/ImportPage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/gemini-test" element={<GeminiTestPage />} />
         <Route path="/ai-settings" element={<AISettingsPage />} />
         <Route path="/plan-create" element={<PlanCreatePage />} />
+        <Route path="/import" element={<ImportPage />} />
       </Routes>
     </HashRouter>
   )
