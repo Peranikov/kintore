@@ -133,19 +133,42 @@ const PRESET_EXERCISES = [
   'ディップス',
 ]
 
+const CARDIO_EXERCISES = ['ランニング', 'バイク']
+
 async function seedExercises() {
   const count = await db.exerciseMasters.count()
   if (count === 0) {
     const now = Date.now()
     await db.exerciseMasters.bulkAdd(
-      PRESET_EXERCISES.map((name) => ({
-        name,
-        createdAt: now,
-      }))
+      PRESET_EXERCISES.map((name) => {
+        const targetMuscles = EXERCISE_MUSCLE_MAP[name]
+        return {
+          name,
+          isCardio: CARDIO_EXERCISES.includes(name) || undefined,
+          targetMuscles: targetMuscles && targetMuscles.length > 0 ? targetMuscles : undefined,
+          createdAt: now,
+        }
+      })
     )
   }
 }
 
-db.on('ready', seedExercises)
+// targetMusclesが未設定の種目にEXERCISE_MUSCLE_MAPから補完
+async function ensureTargetMuscles() {
+  const exercises = await db.exerciseMasters.toArray()
+  for (const exercise of exercises) {
+    if (!exercise.targetMuscles) {
+      const targetMuscles = EXERCISE_MUSCLE_MAP[exercise.name]
+      if (targetMuscles && targetMuscles.length > 0) {
+        await db.exerciseMasters.update(exercise.id!, { targetMuscles })
+      }
+    }
+  }
+}
+
+db.on('ready', async () => {
+  await seedExercises()
+  await ensureTargetMuscles()
+})
 
 export { db }
