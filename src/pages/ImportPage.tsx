@@ -4,7 +4,6 @@ import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
 import { parseExportMarkdown, type ParseResult } from '../utils/importParser'
 import type { WorkoutLog } from '../types'
-import { EXERCISE_MUSCLE_MAP } from '../db/exerciseMuscleMap'
 
 export function ImportPage() {
   const [text, setText] = useState('')
@@ -54,12 +53,10 @@ export function ImportPage() {
 
       for (const ex of parseResult.exercises) {
         if (!existingNames.has(ex.name)) {
-          const targetMuscles = EXERCISE_MUSCLE_MAP[ex.name]
           await db.exerciseMasters.add({
             name: ex.name,
             isBodyweight: ex.isBodyweight || undefined,
             isCardio: ex.isCardio || undefined,
-            targetMuscles: targetMuscles && targetMuscles.length > 0 ? targetMuscles : undefined,
             createdAt: now,
           })
         }

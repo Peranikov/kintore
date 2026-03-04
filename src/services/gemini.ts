@@ -1,6 +1,5 @@
 import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster, StagnationInfo, DeloadSuggestion } from '../types'
-import { calculateWeeklyVolume, formatVolumeForPrompt } from '../utils/volumeCalculations'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { generateDeloadSuggestion, formatDeloadForPrompt } from '../utils/periodization'
 
@@ -120,7 +119,6 @@ export function buildPrompt(
   userMemo: string,
   stagnationInfos: StagnationInfo[] = [],
   deloadSuggestion: DeloadSuggestion | null = null,
-  volumePrompt: string | null = null
 ): string {
   const systemPrompt = `あなたは経験豊富なパーソナルトレーナーです。
 ユーザーの情報と過去のトレーニング履歴を考慮し、今日のトレーニングプランを提案してください。
@@ -131,8 +129,7 @@ export function buildPrompt(
 3. 「前回のトレーニング評価」がある場合は、その改善点を考慮してプランを作成してください
 4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
 5. 「ディロード推奨」がある場合は、ボリュームを通常の50-60%に抑えたプランを提案してください
-6. 「週間ボリューム状況」がある場合は、不足している部位を優先的に含め、過多の部位は控えめにしてください
-7. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+6. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
@@ -170,15 +167,11 @@ export function buildPrompt(
     ? `\n\n■ ${formatDeloadForPrompt(deloadSuggestion)}`
     : ''
 
-  const volumeSection = volumePrompt
-    ? `\n\n■ ${volumePrompt}`
-    : ''
-
   const memoSection = userMemo.trim()
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${deloadSection}${volumeSection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
 }
 
 // JSONを抽出してパース
@@ -468,11 +461,7 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   // ディロード推奨を検出
   const deloadSuggestion = generateDeloadSuggestion(allRecentLogs, exerciseMasters)
 
-  // 週間ボリューム状況を取得
-  const weeklyVolume = calculateWeeklyVolume(allRecentLogs, exerciseMasters)
-  const volumePrompt = formatVolumeForPrompt(weeklyVolume)
-
-  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion, volumePrompt)
+  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
 
   const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',

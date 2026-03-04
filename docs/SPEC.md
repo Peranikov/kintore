@@ -183,7 +183,6 @@
 - ページを開くと自動でプラン生成を開始
 - 過去7回分の履歴と登録済み種目を考慮してプラン生成
 - 直近の保存済みAI評価がある場合、その改善点を考慮してプラン生成
-- 週間ボリュームの不足・過多を自動検出し、バランスを考慮したプランを生成
 - 各種目について前回の記録を表示（日付・セット内容）
 - チャットで修正指示を送信して再生成可能（会話コンテキストを保持）
 - 「採用する」ボタンで今日のログに追加
@@ -207,46 +206,6 @@
 - 左スワイプ: 次月へ
 - 右スワイプ: 先月へ
 - ボタン操作も併用可能
-
-### ボリューム管理（週間セット数）
-
-部位ごとの週間セット数を管理し、最適なトレーニングボリュームを可視化。
-
-#### 部位カテゴリ
-| 部位 | 対象筋群 | 週間推奨セット |
-|------|---------|---------------|
-| 胸 | 大胸筋 | 10-20 |
-| 背中 | 広背筋、僧帽筋 | 10-20 |
-| 肩 | 三角筋 | 10-20 |
-| 二頭 | 上腕二頭筋 | 10-20 |
-| 三頭 | 上腕三頭筋 | 10-20 |
-| 四頭 | 大腿四頭筋 | 10-20 |
-| ハム | ハムストリングス | 10-20 |
-| 臀部 | 大臀筋 | 10-20 |
-| 腹筋 | 腹直筋 | 10-20 |
-
-#### 実装内容
-- 種目マスタに「対象部位」フィールドを追加（複数選択可：コンパウンド種目対応）
-- 例：ベンチプレス → 胸（メイン）、三頭（サブ）
-- サブ部位は0.5セット換算で集計
-- プリセット種目は自動で部位をマッピング
-
-#### 表示場所
-- グラフ画面: 詳細表示（全部位のバーグラフ）
-
-#### 色分け
-- 不足（<10セット）: 黄色
-- 適正（10-20セット）: 緑
-- 過多（>20セット）: 赤
-
-#### ボリュームアドバイス自動表示
-- 不足・過多の部位がある場合、具体的なアドバイスをテキストで自動表示
-- 不足: 黄色背景カード（例: 「ハムが4.0セットで不足です。種目の追加を検討してください」）
-- 過多: 赤色背景カード（例: 「胸が22.0セットで過多です。回復のためセット数を減らすことを検討してください」）
-
-#### AIプラン生成への自動フィードバック
-- 週間ボリュームの不足・過多をAIプラン生成プロンプトに自動注入
-- 不足部位を優先的に含め、過多部位を控えめにしたプランを生成
 
 ### プログレッシブオーバーロード追跡
 
@@ -347,23 +306,7 @@ interface ExerciseMaster {
   name: string         // 種目名
   isBodyweight?: boolean  // 自重トレーニングフラグ
   isCardio?: boolean      // 有酸素運動フラグ
-  targetMuscles?: TargetMuscle[]  // 対象部位
   createdAt: number    // timestamp
-}
-```
-
-### TargetMuscle（対象部位）
-
-```typescript
-type MuscleGroup =
-  | 'chest' | 'back' | 'shoulder'
-  | 'biceps' | 'triceps'
-  | 'quadriceps' | 'hamstrings' | 'glutes'
-  | 'abs'
-
-interface TargetMuscle {
-  muscle: MuscleGroup
-  isMain: boolean  // true: メイン, false: サブ
 }
 ```
 
@@ -383,7 +326,7 @@ interface AppSettings {
 // Version 7
 db.version(7).stores({
   workoutLogs: '++id, date, createdAt',
-  exerciseMasters: '++id, name, createdAt',  // targetMuscles追加、既存種目に部位情報を自動設定
+  exerciseMasters: '++id, name, createdAt',
   appSettings: '++id, &key',
 })
 ```
@@ -425,8 +368,7 @@ src/
 ├── components/    # 再利用可能なUIコンポーネント
 │   ├── BottomNav.tsx        # 下部ナビゲーション
 │   ├── ExerciseForm.tsx     # 種目入力フォーム
-│   ├── ProgressIndicator.tsx # 進捗表示
-│   └── WeeklyVolume.tsx     # 週間ボリューム表示
+│   └── ProgressIndicator.tsx # 進捗表示
 ├── pages/         # ページコンポーネント
 │   ├── HomePage.tsx
 │   ├── LogDetailPage.tsx
@@ -444,7 +386,6 @@ src/
 ├── types/         # TypeScript型定義
 ├── utils/         # ユーティリティ関数
 │   ├── progressCalculations.ts  # 進捗比較計算
-│   ├── volumeCalculations.ts    # ボリューム計算
 │   ├── graphCalculations.ts     # グラフ用データ計算
 │   ├── stagnationDetection.ts   # 停滞検出
 │   └── importParser.ts          # Markdownインポートパーサー

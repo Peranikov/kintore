@@ -1,6 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { WorkoutLog, ExerciseMaster, AppSettings } from '../types'
-import { EXERCISE_MUSCLE_MAP } from './exerciseMuscleMap'
 
 const db = new Dexie('TrainingLogDB') as Dexie & {
   workoutLogs: EntityTable<WorkoutLog, 'id'>
@@ -65,20 +64,11 @@ db.version(6).stores({
   }
 })
 
-// Version 7: ExerciseMasterにtargetMuscles（対象部位）を追加
+// Version 7: ExerciseMasterにtargetMuscles（対象部位）を追加（※機能削除済み、バージョンのみ維持）
 db.version(7).stores({
   workoutLogs: '++id, date, createdAt',
   exerciseMasters: '++id, name, createdAt',
   appSettings: '++id, &key',
-}).upgrade(async (tx) => {
-  const table = tx.table('exerciseMasters')
-  const exercises = await table.toArray()
-  for (const exercise of exercises) {
-    const targetMuscles = EXERCISE_MUSCLE_MAP[exercise.name]
-    if (targetMuscles && targetMuscles.length > 0) {
-      await table.update(exercise.id, { targetMuscles })
-    }
-  }
 })
 
 const PRESET_EXERCISES = [
@@ -140,35 +130,17 @@ async function seedExercises() {
   if (count === 0) {
     const now = Date.now()
     await db.exerciseMasters.bulkAdd(
-      PRESET_EXERCISES.map((name) => {
-        const targetMuscles = EXERCISE_MUSCLE_MAP[name]
-        return {
-          name,
-          isCardio: CARDIO_EXERCISES.includes(name) || undefined,
-          targetMuscles: targetMuscles && targetMuscles.length > 0 ? targetMuscles : undefined,
-          createdAt: now,
-        }
-      })
+      PRESET_EXERCISES.map((name) => ({
+        name,
+        isCardio: CARDIO_EXERCISES.includes(name) || undefined,
+        createdAt: now,
+      }))
     )
-  }
-}
-
-// targetMusclesが未設定の種目にEXERCISE_MUSCLE_MAPから補完
-async function ensureTargetMuscles() {
-  const exercises = await db.exerciseMasters.toArray()
-  for (const exercise of exercises) {
-    if (!exercise.targetMuscles) {
-      const targetMuscles = EXERCISE_MUSCLE_MAP[exercise.name]
-      if (targetMuscles && targetMuscles.length > 0) {
-        await db.exerciseMasters.update(exercise.id!, { targetMuscles })
-      }
-    }
   }
 }
 
 db.on('ready', async () => {
   await seedExercises()
-  await ensureTargetMuscles()
 })
 
 export { db }
