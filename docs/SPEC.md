@@ -15,7 +15,7 @@
 | データ保存 | IndexedDB (Dexie.js) |
 | PWA | vite-plugin-pwa |
 | グラフ | Recharts |
-| AI API | Google Gemini API (gemini-2.5-flash) |
+| AI API | Google Gemini API (gemini-3.1-flash-lite) |
 | スワイプ | react-swipeable |
 
 ## 機能要件

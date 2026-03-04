@@ -4,7 +4,7 @@ import { calculateWeeklyVolume, formatVolumeForPrompt } from '../utils/volumeCal
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { generateDeloadSuggestion, formatDeloadForPrompt } from '../utils/periodization'
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent'
 
 // Gemini 2.5用のJSON Schemaを定義
 const PLAN_RESPONSE_SCHEMA = {
