@@ -57,11 +57,22 @@ describe('periodization', () => {
     })
 
     it('counts multiple trainings in same week as one week', () => {
-      // 今週に複数回トレーニング
+      // 今週の月曜〜水曜に複数回トレーニング（曜日に関係なく同一週に収まるようにする）
+      const today = new Date()
+      const day = today.getDay()
+      const diffToMonday = day === 0 ? -6 : 1 - day
+      const monday = new Date(today)
+      monday.setDate(today.getDate() + diffToMonday)
+      const tuesday = new Date(monday)
+      tuesday.setDate(monday.getDate() + 1)
+      const wednesday = new Date(monday)
+      wednesday.setDate(monday.getDate() + 2)
+      const fmt = (d: Date) => d.toISOString().split('T')[0]
+
       const logs = [
-        makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(1), [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(2), [{ name: 'デッドリフト', sets: [{ weight: 120, reps: 5 }] }]),
+        makeLog(fmt(wednesday), [{ name: 'デッドリフト', sets: [{ weight: 120, reps: 5 }] }]),
+        makeLog(fmt(tuesday), [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
+        makeLog(fmt(monday), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
       const result = calculateConsecutiveTrainingWeeks(logs)
       expect(result).toBe(1)
