@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { getApiKey, getUserProfile, saveApiKey, saveUserProfile } from '../services/gemini'
+import { getApiKey, getUserProfile, getGeminiModel, saveApiKey, saveUserProfile, saveGeminiModel, GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '../services/gemini'
 
 export function AISettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [profile, setProfile] = useState('')
+  const [model, setModel] = useState(DEFAULT_GEMINI_MODEL)
   const [savedApiKey, setSavedApiKey] = useState('')
   const [savedProfile, setSavedProfile] = useState('')
+  const [savedModel, setSavedModel] = useState(DEFAULT_GEMINI_MODEL)
   const [showApiKey, setShowApiKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -14,7 +16,7 @@ export function AISettingsPage() {
   // 初期値を読み込み
   useEffect(() => {
     const load = async () => {
-      const [key, prof] = await Promise.all([getApiKey(), getUserProfile()])
+      const [key, prof, mdl] = await Promise.all([getApiKey(), getUserProfile(), getGeminiModel()])
       if (key) {
         setApiKey(key)
         setSavedApiKey(key)
@@ -23,6 +25,8 @@ export function AISettingsPage() {
         setProfile(prof)
         setSavedProfile(prof)
       }
+      setModel(mdl)
+      setSavedModel(mdl)
     }
     load()
   }, [])
@@ -36,18 +40,20 @@ export function AISettingsPage() {
       await Promise.all([
         saveApiKey(apiKey.trim()),
         saveUserProfile(profile.trim()),
+        saveGeminiModel(model),
       ])
       setSavedApiKey(apiKey.trim())
       setSavedProfile(profile.trim())
+      setSavedModel(model)
       setMessage({ type: 'success', text: '設定を保存しました' })
     } catch (e) {
       setMessage({ type: 'error', text: `保存に失敗しました: ${e instanceof Error ? e.message : String(e)}` })
     } finally {
       setSaving(false)
     }
-  }, [apiKey, profile])
+  }, [apiKey, profile, model])
 
-  const hasChanges = apiKey !== savedApiKey || profile !== savedProfile
+  const hasChanges = apiKey !== savedApiKey || profile !== savedProfile || model !== savedModel
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -105,6 +111,22 @@ export function AISettingsPage() {
             </svg>
             Google AI StudioでAPIキーを取得
           </a>
+        </section>
+
+        {/* モデル選択 */}
+        <section className="bg-white rounded-lg shadow p-4">
+          <h2 className="font-bold text-gray-700 mb-3">AIモデル</h2>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm"
+          >
+            {GEMINI_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label} - {m.description}
+              </option>
+            ))}
+          </select>
         </section>
 
         {/* プロフィール設定 */}
