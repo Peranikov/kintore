@@ -143,20 +143,6 @@ export function getProgressColorClass(status: ProgressStatus): string {
 }
 
 /**
- * 進捗状態に応じた背景色クラスを取得
- */
-export function getProgressBgClass(status: ProgressStatus): string {
-  switch (status) {
-    case 'up':
-      return 'bg-green-100'
-    case 'down':
-      return 'bg-red-100'
-    case 'same':
-      return 'bg-yellow-100'
-  }
-}
-
-/**
  * 進捗状態に応じたアイコンを取得
  */
 export function getProgressIcon(status: ProgressStatus): string {

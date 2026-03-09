@@ -7,7 +7,6 @@ import {
   calculateBodyweightProgress,
   calculateCardioProgress,
   getProgressColorClass,
-  getProgressBgClass,
   getProgressIcon,
   formatDiff,
 } from './progressCalculations'
@@ -202,20 +201,6 @@ describe('progressCalculations', () => {
 
     it('returns red for down', () => {
       expect(getProgressColorClass('down')).toBe('text-red-600')
-    })
-  })
-
-  describe('getProgressBgClass', () => {
-    it('returns green bg for up', () => {
-      expect(getProgressBgClass('up')).toBe('bg-green-100')
-    })
-
-    it('returns yellow bg for same', () => {
-      expect(getProgressBgClass('same')).toBe('bg-yellow-100')
-    })
-
-    it('returns red bg for down', () => {
-      expect(getProgressBgClass('down')).toBe('bg-red-100')
     })
   })
 
