@@ -2,9 +2,46 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { execSync } from 'child_process'
+import { existsSync, readFileSync } from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const commitHash = execSync('git rev-parse --short HEAD').toString().trim()
+function getCommitHash(): string {
+  const rootDir = path.dirname(fileURLToPath(import.meta.url))
+  const gitDir = path.join(rootDir, '.git')
+
+  try {
+    const head = readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim()
+
+    if (!head.startsWith('ref: ')) {
+      return head.slice(0, 7)
+    }
+
+    const refPath = head.slice(5)
+    const refFile = path.join(gitDir, refPath)
+
+    if (existsSync(refFile)) {
+      return readFileSync(refFile, 'utf8').trim().slice(0, 7)
+    }
+
+    const packedRefs = path.join(gitDir, 'packed-refs')
+    if (existsSync(packedRefs)) {
+      const refLine = readFileSync(packedRefs, 'utf8')
+        .split('\n')
+        .find((line) => line.endsWith(` ${refPath}`))
+
+      if (refLine) {
+        return refLine.split(' ')[0].slice(0, 7)
+      }
+    }
+  } catch {
+    return 'unknown'
+  }
+
+  return 'unknown'
+}
+
+const commitHash = getCommitHash()
 
 // https://vite.dev/config/
 export default defineConfig({
