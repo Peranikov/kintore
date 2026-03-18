@@ -79,8 +79,8 @@ export interface PerformanceDecline {
 
 // ディロード提案
 export interface DeloadSuggestion {
-  reason: 'consecutive_weeks' | 'performance_decline'
+  reason: 'accumulated_sessions' | 'performance_decline'
   message: string
-  weeksTraining: number
+  sessionCount: number
   performanceDecline?: PerformanceDecline[]
 }

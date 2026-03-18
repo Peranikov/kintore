@@ -143,7 +143,7 @@ export function HomePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-amber-800">
-                  {deloadSuggestion.reason === 'consecutive_weeks'
+                  {deloadSuggestion.reason === 'accumulated_sessions'
                     ? 'ディロード週の検討を'
                     : 'パフォーマンス低下を検出'}
                 </div>

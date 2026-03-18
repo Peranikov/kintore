@@ -8,72 +8,57 @@ import {
 } from './graphCalculations'
 
 // ディロード検出の閾値
-const CONSECUTIVE_WEEKS_THRESHOLD = 4     // 連続4週以上でディロード推奨
-const PERFORMANCE_DECLINE_THRESHOLD = -5  // -5%以下でパフォーマンス低下とみなす
-const PERFORMANCE_CHECK_WEEKS = 2         // 直近2週間をチェック
+const ACCUMULATED_SESSIONS_THRESHOLD = 16  // 累積16セッション以上でディロード推奨
+const REST_PERIOD_DAYS = 7                 // 7日以上の空白で累積リセット
+const PERFORMANCE_DECLINE_THRESHOLD = -5   // -5%以下でパフォーマンス低下とみなす
+const PERFORMANCE_CHECK_WEEKS = 2          // 直近2週間をチェック
 
 /**
- * 日付から週の開始日（月曜日）を取得
+ * 累積トレーニングセッション数を計算
+ * 日付降順でログを走査し、7日以上の空白があればカウント停止
+ * 最新のトレーニングから今日まで7日以上空いている場合も0を返す
  */
-function getWeekStart(dateStr: string): string {
-  const date = new Date(dateStr)
-  const day = date.getDay()
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-  const monday = new Date(date.setDate(diff))
-  return monday.toISOString().split('T')[0]
-}
-
-/**
- * 2つの日付の週数差を計算
- */
-function getWeeksDiff(date1: string, date2: string): number {
-  const d1 = new Date(date1)
-  const d2 = new Date(date2)
-  const diffMs = Math.abs(d2.getTime() - d1.getTime())
-  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
-}
-
-/**
- * 連続トレーニング週数を計算
- * 各週に少なくとも1回のトレーニングがあれば連続とみなす
- */
-export function calculateConsecutiveTrainingWeeks(logs: WorkoutLog[]): number {
+export function calculateAccumulatedSessions(logs: WorkoutLog[]): number {
   if (logs.length === 0) return 0
 
-  // 週ごとのトレーニング有無を記録
-  const weekSet = new Set<string>()
-  logs.forEach(log => {
-    weekSet.add(getWeekStart(log.date))
-  })
+  // 日付でソート（新しい順）
+  const sortedLogs = [...logs].sort((a, b) => b.date.localeCompare(a.date))
 
-  const sortedWeeks = Array.from(weekSet).sort((a, b) => b.localeCompare(a)) // 新しい順
+  // 最新のトレーニングから今日まで7日以上空いているかチェック
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const latestDate = new Date(sortedLogs[0].date)
+  latestDate.setHours(0, 0, 0, 0)
+  const daysSinceLatest = Math.floor((today.getTime() - latestDate.getTime()) / (24 * 60 * 60 * 1000))
+  if (daysSinceLatest >= REST_PERIOD_DAYS) return 0
 
-  if (sortedWeeks.length === 0) return 0
+  // 同じ日付のログを1セッションとしてカウント
+  let sessionCount = 1
+  let prevDate = sortedLogs[0].date
 
-  // 今週の週開始日を取得
-  const today = new Date().toISOString().split('T')[0]
-  const currentWeek = getWeekStart(today)
+  for (let i = 1; i < sortedLogs.length; i++) {
+    const currentDate = sortedLogs[i].date
 
-  // 最新のトレーニング週が今週または先週でなければ連続トレーニング中ではない
-  const latestTrainingWeek = sortedWeeks[0]
-  const weeksDiff = getWeeksDiff(currentWeek, latestTrainingWeek)
-  if (weeksDiff > 1) return 0
+    // 前のログとの日数差を計算
+    const prev = new Date(prevDate)
+    const curr = new Date(currentDate)
+    prev.setHours(0, 0, 0, 0)
+    curr.setHours(0, 0, 0, 0)
+    const daysDiff = Math.floor((prev.getTime() - curr.getTime()) / (24 * 60 * 60 * 1000))
 
-  // 連続週数をカウント
-  let consecutiveWeeks = 1
-  for (let i = 1; i < sortedWeeks.length; i++) {
-    const prevWeek = sortedWeeks[i - 1]
-    const currentCheckWeek = sortedWeeks[i]
-    const diff = getWeeksDiff(prevWeek, currentCheckWeek)
-
-    if (diff === 1) {
-      consecutiveWeeks++
-    } else {
+    if (daysDiff >= REST_PERIOD_DAYS) {
+      // 7日以上の空白 → カウント停止
       break
+    }
+
+    // 同じ日付は1セッションとしてカウント
+    if (currentDate !== prevDate) {
+      sessionCount++
+      prevDate = currentDate
     }
   }
 
-  return consecutiveWeeks
+  return sessionCount
 }
 
 /**
@@ -192,7 +177,7 @@ export function generateDeloadSuggestion(
   logs: WorkoutLog[],
   masters: ExerciseMaster[]
 ): DeloadSuggestion | null {
-  const consecutiveWeeks = calculateConsecutiveTrainingWeeks(logs)
+  const sessionCount = calculateAccumulatedSessions(logs)
   const performanceDeclines = detectPerformanceDecline(logs, masters)
 
   // パフォーマンス低下を優先
@@ -201,17 +186,17 @@ export function generateDeloadSuggestion(
     return {
       reason: 'performance_decline',
       message: `${declineNames}などでパフォーマンスが低下しています。ディロード週（回復週）を検討してください。`,
-      weeksTraining: consecutiveWeeks,
+      sessionCount,
       performanceDecline: performanceDeclines,
     }
   }
 
-  // 連続トレーニング週数が閾値以上
-  if (consecutiveWeeks >= CONSECUTIVE_WEEKS_THRESHOLD) {
+  // 累積セッション数が閾値以上
+  if (sessionCount >= ACCUMULATED_SESSIONS_THRESHOLD) {
     return {
-      reason: 'consecutive_weeks',
-      message: `${consecutiveWeeks}週連続でトレーニングを継続しています。ディロード週（回復週）を検討してください。`,
-      weeksTraining: consecutiveWeeks,
+      reason: 'accumulated_sessions',
+      message: `${sessionCount}セッション連続でトレーニングを継続しています。ディロード週（回復週）を検討してください。`,
+      sessionCount,
     }
   }
 
@@ -224,8 +209,8 @@ export function generateDeloadSuggestion(
 export function formatDeloadForPrompt(suggestion: DeloadSuggestion): string {
   const lines: string[] = ['## ディロード推奨']
 
-  if (suggestion.reason === 'consecutive_weeks') {
-    lines.push(`- 理由: ${suggestion.weeksTraining}週連続のトレーニング継続`)
+  if (suggestion.reason === 'accumulated_sessions') {
+    lines.push(`- 理由: ${suggestion.sessionCount}セッション連続のトレーニング継続`)
   } else {
     lines.push('- 理由: パフォーマンス低下を検出')
     if (suggestion.performanceDecline) {

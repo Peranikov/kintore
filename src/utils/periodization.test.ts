@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { WorkoutLog, ExerciseMaster } from '../types'
 import {
-  calculateConsecutiveTrainingWeeks,
+  calculateAccumulatedSessions,
   detectPerformanceDecline,
   generateDeloadSuggestion,
   formatDeloadForPrompt,
@@ -30,72 +30,96 @@ function makeLog(date: string, exercises: { name: string; sets: { weight: number
 }
 
 describe('periodization', () => {
-  describe('calculateConsecutiveTrainingWeeks', () => {
+  describe('calculateAccumulatedSessions', () => {
     it('returns 0 for empty logs', () => {
-      const result = calculateConsecutiveTrainingWeeks([])
+      const result = calculateAccumulatedSessions([])
       expect(result).toBe(0)
     })
 
-    it('returns 1 for training only this week', () => {
+    it('returns 1 for a single training today', () => {
       const logs = [
         makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
-      const result = calculateConsecutiveTrainingWeeks(logs)
+      const result = calculateAccumulatedSessions(logs)
       expect(result).toBe(1)
     })
 
-    it('returns consecutive weeks count when training every week', () => {
-      // 今週、先週、2週間前、3週間前にトレーニング（4週連続）
+    it('counts sessions across consecutive days', () => {
+      // 6日間連続でトレーニング
       const logs = [
         makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(1), [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(2), [{ name: 'デッドリフト', sets: [{ weight: 120, reps: 5 }] }]),
+        makeLog(makeDateDaysAgo(3), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(4), [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(5), [{ name: 'デッドリフト', sets: [{ weight: 120, reps: 5 }] }]),
+      ]
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(6)
+    })
+
+    it('counts same-day logs as one session', () => {
+      const today = makeDateDaysAgo(0)
+      const logs = [
+        makeLog(today, [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(today, [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
+      ]
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(1)
+    })
+
+    it('resets count when there is a 7+ day gap', () => {
+      // 今日と8日前にトレーニング（7日以上の空白）
+      const logs = [
+        makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(8), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+      ]
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(1) // 最新セッションのみ
+    })
+
+    it('does not reset with exactly 6 day gap', () => {
+      const logs = [
+        makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(6), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+      ]
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(2)
+    })
+
+    it('returns 0 if latest training is 7+ days ago', () => {
+      const logs = [
         makeLog(makeDateDaysAgo(7), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(14), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(21), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(8), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
-      const result = calculateConsecutiveTrainingWeeks(logs)
-      expect(result).toBe(4)
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(0)
     })
 
-    it('counts multiple trainings in same week as one week', () => {
-      // 今週の月曜〜水曜に複数回トレーニング（曜日に関係なく同一週に収まるようにする）
-      const today = new Date()
-      const day = today.getDay()
-      const diffToMonday = day === 0 ? -6 : 1 - day
-      const monday = new Date(today)
-      monday.setDate(today.getDate() + diffToMonday)
-      const tuesday = new Date(monday)
-      tuesday.setDate(monday.getDate() + 1)
-      const wednesday = new Date(monday)
-      wednesday.setDate(monday.getDate() + 2)
-      const fmt = (d: Date) => d.toISOString().split('T')[0]
-
-      const logs = [
-        makeLog(fmt(wednesday), [{ name: 'デッドリフト', sets: [{ weight: 120, reps: 5 }] }]),
-        makeLog(fmt(tuesday), [{ name: 'スクワット', sets: [{ weight: 100, reps: 10 }] }]),
-        makeLog(fmt(monday), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-      ]
-      const result = calculateConsecutiveTrainingWeeks(logs)
-      expect(result).toBe(1)
+    it('counts sessions with weekly training pattern', () => {
+      // 週2回ペースで8週間（16セッション）
+      const logs = []
+      for (let i = 0; i < 16; i++) {
+        // 3-4日間隔で配置（週2回相当）
+        logs.push(
+          makeLog(makeDateDaysAgo(i * 3), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }])
+        )
+      }
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(16)
     })
 
-    it('resets count when a week is skipped', () => {
-      // 今週と3週間前にトレーニング（間に1週間空き）
+    it('stops counting at the gap, not after', () => {
+      // 今日、2日前、3日前、（10日空白）、14日前、15日前
       const logs = [
         makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(21), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-      ]
-      const result = calculateConsecutiveTrainingWeeks(logs)
-      expect(result).toBe(1) // 直近の連続のみ
-    })
-
-    it('returns 0 if latest training is more than 1 week ago', () => {
-      // 2週間以上前のトレーニングのみ
-      const logs = [
+        makeLog(makeDateDaysAgo(2), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(3), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(14), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
         makeLog(makeDateDaysAgo(15), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(22), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
-      const result = calculateConsecutiveTrainingWeeks(logs)
-      expect(result).toBe(0)
+      const result = calculateAccumulatedSessions(logs)
+      expect(result).toBe(3) // 14日前との間に11日の空白
     })
   })
 
@@ -197,32 +221,32 @@ describe('periodization', () => {
     ]
 
     it('returns null when no deload needed', () => {
-      // 2週間のトレーニングのみ、パフォーマンス低下なし
+      // 少数セッション、パフォーマンス低下なし
       const logs = [
         makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 85, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(7), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
+        makeLog(makeDateDaysAgo(3), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
       const result = generateDeloadSuggestion(logs, exerciseMasters)
       expect(result).toBeNull()
     })
 
-    it('suggests deload after 4+ consecutive weeks', () => {
-      // 4週連続トレーニング
-      const logs = [
-        makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(7), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(14), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-        makeLog(makeDateDaysAgo(21), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
-      ]
+    it('suggests deload after 16+ accumulated sessions', () => {
+      // 16セッション（3日間隔で配置）
+      const logs = []
+      for (let i = 0; i < 16; i++) {
+        logs.push(
+          makeLog(makeDateDaysAgo(i * 3), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }])
+        )
+      }
       const result = generateDeloadSuggestion(logs, exerciseMasters)
       expect(result).not.toBeNull()
-      expect(result!.reason).toBe('consecutive_weeks')
-      expect(result!.weeksTraining).toBe(4)
-      expect(result!.message).toContain('4週連続')
+      expect(result!.reason).toBe('accumulated_sessions')
+      expect(result!.sessionCount).toBe(16)
+      expect(result!.message).toContain('16セッション')
     })
 
-    it('prioritizes performance decline over consecutive weeks', () => {
-      // 4週連続 + パフォーマンス低下
+    it('prioritizes performance decline over accumulated sessions', () => {
+      // 多数セッション + パフォーマンス低下
       const logs = [
         makeLog(makeDateDaysAgo(0), [
           { name: 'ベンチプレス', sets: [{ weight: 70, reps: 10 }] },
@@ -249,7 +273,7 @@ describe('periodization', () => {
     })
 
     it('requires at least 2 exercises with decline for performance_decline reason', () => {
-      // 1種目のみ低下（閾値未満）
+      // 1種目のみ低下 + セッション数不足
       const logs = [
         makeLog(makeDateDaysAgo(0), [{ name: 'ベンチプレス', sets: [{ weight: 70, reps: 10 }] }]),
         makeLog(makeDateDaysAgo(7), [{ name: 'ベンチプレス', sets: [{ weight: 70, reps: 10 }] }]),
@@ -257,22 +281,21 @@ describe('periodization', () => {
         makeLog(makeDateDaysAgo(21), [{ name: 'ベンチプレス', sets: [{ weight: 80, reps: 10 }] }]),
       ]
       const result = generateDeloadSuggestion(logs, exerciseMasters)
-      // 1種目の低下では consecutive_weeks にフォールバック
-      expect(result).not.toBeNull()
-      expect(result!.reason).toBe('consecutive_weeks')
+      // セッション数4でaccumulated_sessionsにも該当しないのでnull
+      expect(result).toBeNull()
     })
   })
 
   describe('formatDeloadForPrompt', () => {
-    it('formats consecutive weeks suggestion', () => {
+    it('formats accumulated sessions suggestion', () => {
       const suggestion = {
-        reason: 'consecutive_weeks' as const,
-        message: '4週連続でトレーニングを継続しています。',
-        weeksTraining: 4,
+        reason: 'accumulated_sessions' as const,
+        message: '16セッション連続でトレーニングを継続しています。',
+        sessionCount: 16,
       }
       const result = formatDeloadForPrompt(suggestion)
       expect(result).toContain('ディロード推奨')
-      expect(result).toContain('4週連続')
+      expect(result).toContain('16セッション連続')
       expect(result).toContain('ボリュームを通常の50-60%に抑える')
     })
 
@@ -280,7 +303,7 @@ describe('periodization', () => {
       const suggestion = {
         reason: 'performance_decline' as const,
         message: 'パフォーマンスが低下しています。',
-        weeksTraining: 3,
+        sessionCount: 12,
         performanceDecline: [
           { exerciseName: 'ベンチプレス', declinePercent: -10 },
           { exerciseName: 'スクワット', declinePercent: -8 },
