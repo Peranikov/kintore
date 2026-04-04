@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "eval": "npm run eval:import-parser && npm run eval:progress-calculations",
+    "eval:import-parser": "mkdir -p .tmp/evals && esbuild scripts/eval-import-parser.ts --bundle --platform=node --format=esm --outfile=.tmp/evals/eval-import-parser.mjs && node .tmp/evals/eval-import-parser.mjs",
+    "eval:progress-calculations": "mkdir -p .tmp/evals && esbuild scripts/eval-progress-calculations.ts --bundle --platform=node --format=esm --outfile=.tmp/evals/eval-progress-calculations.mjs && node .tmp/evals/eval-progress-calculations.mjs",
     "check": "npm run lint && npm run test:run && npm run build",
+    "verify": "npm run check && npm run eval",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
