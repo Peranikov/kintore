@@ -12,6 +12,7 @@ import {
   formatStagnationSummary,
   buildPrompt,
   parseGeneratedPlan,
+  validateGeneratedPlan,
   EMPTY_STRUCTURED_USER_PROFILE,
 } from './gemini'
 import type { WorkoutLog, ExerciseMaster, StagnationInfo } from '../types'
@@ -423,6 +424,28 @@ describe('parseGeneratedPlan', () => {
     expect(result.exercises[0].sets[0].reps).toBe(0)
     expect(result.exercises[0].sets[0].duration).toBe(20)
     expect(result.exercises[0].sets[0].distance).toBe(3.5)
+  })
+})
+
+describe('validateGeneratedPlan', () => {
+  it('未登録の種目を弾く', () => {
+    expect(() => validateGeneratedPlan({
+      exercises: [
+        { name: '未知の種目', sets: [{ weight: 60, reps: 10 }] },
+      ],
+    }, [
+      { id: 1, name: 'ベンチプレス', createdAt: Date.now() },
+    ])).toThrow('未登録の種目が含まれています')
+  })
+
+  it('有酸素種目にdurationがない場合は弾く', () => {
+    expect(() => validateGeneratedPlan({
+      exercises: [
+        { name: 'ランニング', sets: [{ weight: 0, reps: 0 }] },
+      ],
+    }, [
+      { id: 1, name: 'ランニング', isCardio: true, createdAt: Date.now() },
+    ])).toThrow('有酸素種目には時間の指定が必要です')
   })
 })
 

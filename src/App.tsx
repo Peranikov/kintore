@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { HomePage } from './pages/HomePage'
+import { FeedbackProvider } from './components/FeedbackProvider'
 
 const LogDetailPage = lazy(() => import('./pages/LogDetailPage').then((module) => ({ default: module.LogDetailPage })))
 const ExerciseMasterPage = lazy(() => import('./pages/ExerciseMasterPage').then((module) => ({ default: module.ExerciseMasterPage })))
@@ -24,22 +25,24 @@ function RouteFallback() {
 
 function App() {
   return (
-    <HashRouter>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/log/:id" element={<LogDetailPage />} />
-          <Route path="/exercises" element={<ExerciseMasterPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/graph" element={<GraphPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/export" element={<ExportPage />} />
-          <Route path="/ai-settings" element={<AISettingsPage />} />
-          <Route path="/plan-create" element={<PlanCreatePage />} />
-          <Route path="/import" element={<ImportPage />} />
-        </Routes>
-      </Suspense>
-    </HashRouter>
+    <FeedbackProvider>
+      <HashRouter>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/log/:id" element={<LogDetailPage />} />
+            <Route path="/exercises" element={<ExerciseMasterPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/graph" element={<GraphPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/export" element={<ExportPage />} />
+            <Route path="/ai-settings" element={<AISettingsPage />} />
+            <Route path="/plan-create" element={<PlanCreatePage />} />
+            <Route path="/import" element={<ImportPage />} />
+          </Routes>
+        </Suspense>
+      </HashRouter>
+    </FeedbackProvider>
   )
 }
 

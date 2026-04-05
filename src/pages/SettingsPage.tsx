@@ -1,11 +1,45 @@
 import { Link } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { seedSampleData, clearAllData } from '../utils/seedData'
+import { useFeedback } from '../components/feedback'
+import { db } from '../db'
 
 const isDev = import.meta.env.DEV
 
 export function SettingsPage() {
+  const { showToast, confirm } = useFeedback()
+  const logCount = useLiveQuery(() => db.workoutLogs.count(), [])
+
+  async function handleSeedSampleData() {
+    if ((logCount || 0) > 0) {
+      const confirmed = await confirm({
+        title: '既存のデータがあります。サンプルデータを追加しますか？',
+        confirmLabel: '追加する',
+        cancelLabel: 'キャンセル',
+      })
+      if (!confirmed) return
+    }
+
+    const count = await seedSampleData()
+    showToast(`${count}件のサンプルデータを追加しました`, 'success')
+  }
+
+  async function handleClearAllData() {
+    const confirmed = await confirm({
+      title: 'すべてのデータを削除しますか？',
+      message: 'この操作は取り消せません。',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+
+    await clearAllData()
+    showToast('すべてのデータを削除しました', 'success')
+  }
+
   return (
     <div
       className="min-h-screen bg-gray-100"
@@ -59,14 +93,14 @@ export function SettingsPage() {
                 <span className="text-gray-400">&rarr;</span>
               </Link>
               <button
-                onClick={() => seedSampleData()}
+                onClick={handleSeedSampleData}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
               >
                 <span>サンプルデータを追加</span>
                 <span className="text-gray-400">&rarr;</span>
               </button>
               <button
-                onClick={() => clearAllData()}
+                onClick={handleClearAllData}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left text-red-600"
               >
                 <span>すべてのデータを削除</span>

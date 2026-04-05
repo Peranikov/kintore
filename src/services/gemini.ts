@@ -69,6 +69,30 @@ export interface GeneratedPlan {
   advice?: string
 }
 
+export function validateGeneratedPlan(plan: GeneratedPlan, exerciseMasters: ExerciseMaster[]): GeneratedPlan {
+  const masterByName = new Map(exerciseMasters.map((master) => [master.name, master]))
+
+  for (const exercise of plan.exercises) {
+    const master = masterByName.get(exercise.name)
+    if (!master) {
+      throw new Error(`未登録の種目が含まれています: ${exercise.name}`)
+    }
+
+    if (exercise.sets.length === 0) {
+      throw new Error(`セットが空の種目があります: ${exercise.name}`)
+    }
+
+    if (master.isCardio) {
+      const invalidCardioSet = exercise.sets.find((set) => !set.duration || set.duration <= 0)
+      if (invalidCardioSet) {
+        throw new Error(`有酸素種目には時間の指定が必要です: ${exercise.name}`)
+      }
+    }
+  }
+
+  return plan
+}
+
 interface BodyPartPriority {
   bodyPart: string
   weeklySets: number
@@ -1099,5 +1123,5 @@ export async function generatePlan(userMemo: string, conversationContext: string
     throw new Error('APIからの応答が空です')
   }
 
-  return parseGeneratedPlan(text)
+  return validateGeneratedPlan(parseGeneratedPlan(text), exerciseMasters)
 }

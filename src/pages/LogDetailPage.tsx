@@ -10,8 +10,10 @@ import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { generateWorkoutEvaluation, getApiKey } from '../services/gemini'
 import { calculateProgress } from '../utils/progressCalculations'
+import { useFeedback } from '../components/feedback'
 
 export function LogDetailPage() {
+  const { showToast, confirm } = useFeedback()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
@@ -94,13 +96,27 @@ export function LogDetailPage() {
   }, [log])
 
   async function handleDeleteLog() {
-    if (!log?.id || !confirm('このログを削除しますか？')) return
+    if (!log?.id) return
+    const confirmed = await confirm({
+      title: 'このログを削除しますか？',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     await db.workoutLogs.delete(log.id)
     navigate('/')
   }
 
   async function handleDeleteExercise(index: number) {
-    if (!log?.id || !confirm('この種目を削除しますか？')) return
+    if (!log?.id) return
+    const confirmed = await confirm({
+      title: 'この種目を削除しますか？',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     const updated: WorkoutLog = {
       ...log,
       exercises: log.exercises.filter((_, i) => i !== index),
@@ -229,7 +245,7 @@ export function LogDetailPage() {
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text).then(() => {
-      alert('クリップボードにコピーしました')
+      showToast('クリップボードにコピーしました', 'success')
     })
   }
 
@@ -429,8 +445,13 @@ export function LogDetailPage() {
                     <Markdown>{evaluation}</Markdown>
                   </div>
                   <button
-                    onClick={() => {
-                      if (confirm('評価を再生成しますか？')) {
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: '評価を再生成しますか？',
+                        confirmLabel: '再生成する',
+                        cancelLabel: 'キャンセル',
+                      })
+                      if (confirmed) {
                         handleGenerateEvaluation()
                       }
                     }}

@@ -27,14 +27,7 @@ function getDateString(daysAgo: number): string {
   return formatLocalDate(date)
 }
 
-export async function seedSampleData(): Promise<void> {
-  const existingLogs = await db.workoutLogs.count()
-  if (existingLogs > 0) {
-    if (!confirm('既存のデータがあります。サンプルデータを追加しますか？')) {
-      return
-    }
-  }
-
+export async function seedSampleData(): Promise<number> {
   const logs: Omit<WorkoutLog, 'id'>[] = []
 
   for (let daysAgo = 90; daysAgo >= 0; daysAgo -= Math.floor(Math.random() * 3) + 2) {
@@ -70,7 +63,7 @@ export async function seedSampleData(): Promise<void> {
   }
 
   await db.workoutLogs.bulkAdd(logs as WorkoutLog[])
-  alert(`${logs.length}件のサンプルデータを追加しました`)
+  return logs.length
 }
 
 function getBaseWeight(exerciseName: string): number {
@@ -88,9 +81,5 @@ function getBaseWeight(exerciseName: string): number {
 }
 
 export async function clearAllData(): Promise<void> {
-  if (!confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
-    return
-  }
   await db.workoutLogs.clear()
-  alert('すべてのデータを削除しました')
 }

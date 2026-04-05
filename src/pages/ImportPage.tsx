@@ -5,8 +5,10 @@ import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { parseExportMarkdown, type ParseResult } from '../utils/importParser'
 import type { WorkoutLog } from '../types'
+import { useFeedback } from '../components/feedback'
 
 export function ImportPage() {
+  const { showToast } = useFeedback()
   const [text, setText] = useState('')
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [parseError, setParseError] = useState('')
@@ -83,12 +85,12 @@ export function ImportPage() {
         await db.workoutLogs.bulkAdd(logsToImport as WorkoutLog[])
       }
 
-      alert(`${logsToImport.length}件のトレーニング記録をインポートしました`)
+      showToast(`${logsToImport.length}件のトレーニング記録をインポートしました`, 'success')
       setText('')
       setParseResult(null)
       setDuplicateDates([])
     } catch (e) {
-      alert(`インポートに失敗しました: ${e instanceof Error ? e.message : String(e)}`)
+      showToast(`インポートに失敗しました: ${e instanceof Error ? e.message : String(e)}`, 'error')
     } finally {
       setImporting(false)
     }

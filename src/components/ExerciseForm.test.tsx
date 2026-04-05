@@ -6,10 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ExerciseForm } from './ExerciseForm'
 import { db } from '../db'
-
-// Mock alert
-const mockAlert = vi.fn()
-vi.stubGlobal('alert', mockAlert)
+import { FeedbackProvider } from './FeedbackProvider'
 
 // Helper to get all spinbutton inputs grouped by set
 // Returns array of arrays: [[weight1, reps1], [weight2, reps2], ...] or [[reps1], [reps2], ...] for bodyweight
@@ -39,6 +36,14 @@ describe('ExerciseForm', () => {
   const mockOnSubmit = vi.fn()
   const mockOnCancel = vi.fn()
 
+  function renderForm() {
+    render(
+      <FeedbackProvider>
+        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
+      </FeedbackProvider>
+    )
+  }
+
   beforeEach(async () => {
     vi.clearAllMocks()
     // Clear database before each test
@@ -53,21 +58,17 @@ describe('ExerciseForm', () => {
 
   describe('バリデーション', () => {
     it('種目名が空の場合、アラートを表示する', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const submitButton = screen.getByRole('button', { name: '追加' })
       await userEvent.click(submitButton)
 
-      expect(mockAlert).toHaveBeenCalledWith('種目名を入力してください')
+      expect(await screen.findByText('種目名を入力してください')).toBeInTheDocument()
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('回数が0以下の場合、アラートを表示する', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'ベンチプレス')
@@ -75,14 +76,12 @@ describe('ExerciseForm', () => {
       const submitButton = screen.getByRole('button', { name: '追加' })
       await userEvent.click(submitButton)
 
-      expect(mockAlert).toHaveBeenCalledWith('重量と回数を正しく入力してください')
+      expect(await screen.findByText('重量と回数を正しく入力してください')).toBeInTheDocument()
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('正しい入力でonSubmitが呼ばれる', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'ベンチプレス')
@@ -112,9 +111,7 @@ describe('ExerciseForm', () => {
         createdAt: Date.now(),
       })
 
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'チンニング')
@@ -129,23 +126,19 @@ describe('ExerciseForm', () => {
       const submitButton = screen.getByRole('button', { name: '追加' })
       await userEvent.click(submitButton)
 
-      expect(mockAlert).toHaveBeenCalledWith('回数を正しく入力してください')
+      expect(await screen.findByText('回数を正しく入力してください')).toBeInTheDocument()
     })
   })
 
   describe('セット管理', () => {
     it('初期状態で1セット表示される', () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       expect(screen.getByText('1.')).toBeInTheDocument()
     })
 
     it('セット追加ボタンでセットが追加される', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const addButton = screen.getByText('+ セットを追加')
       await userEvent.click(addButton)
@@ -154,9 +147,7 @@ describe('ExerciseForm', () => {
     })
 
     it('追加されたセットは前のセットの値を引き継ぐ', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       // Set values for first set
       const inputs = getSetInputs(0)
@@ -178,9 +169,7 @@ describe('ExerciseForm', () => {
     })
 
     it('セット削除ボタンでセットが削除される', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       // Add a second set first
       const addButton = screen.getByText('+ セットを追加')
@@ -196,18 +185,14 @@ describe('ExerciseForm', () => {
     })
 
     it('最後の1セットは削除できない', () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       // 削除ボタンは1セットのみの時は表示されない
       expect(screen.queryByTitle('削除')).not.toBeInTheDocument()
     })
 
     it('クリアボタンでセットの値がリセットされる', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       // Set values
       const inputs = getSetInputs(0)
@@ -231,9 +216,7 @@ describe('ExerciseForm', () => {
 
   describe('キーボード操作', () => {
     it('種目名入力後のEnterで重量欄にフォーカス', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'ベンチプレス')
@@ -244,9 +227,7 @@ describe('ExerciseForm', () => {
     })
 
     it('重量入力後のEnterで回数欄にフォーカス', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const inputs = getSetInputs(0)
       await userEvent.type(inputs[0], '60')
@@ -256,9 +237,7 @@ describe('ExerciseForm', () => {
     })
 
     it('回数入力後のEnterで次のセットがなければ新規追加', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const inputs = getSetInputs(0)
       await userEvent.type(inputs[1], '10')
@@ -271,9 +250,7 @@ describe('ExerciseForm', () => {
     })
 
     it('回数入力後のEnterで次のセットがあればそこにフォーカス', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       // Add second set first
       const addButton = screen.getByText('+ セットを追加')
@@ -304,9 +281,7 @@ describe('ExerciseForm', () => {
     })
 
     it('自重トレーニングは重量入力が表示されない', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'チンニング')
@@ -320,9 +295,7 @@ describe('ExerciseForm', () => {
     })
 
     it('自重トレーニングで種目名EnterはReps欄にフォーカス', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'チンニング')
@@ -363,9 +336,7 @@ describe('ExerciseForm', () => {
     })
 
     it('種目名入力で前回記録が表示される', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'ベンチプレス')
@@ -380,9 +351,7 @@ describe('ExerciseForm', () => {
     })
 
     it('コピーボタンで前回記録がコピーされる', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
       await userEvent.type(nameInput, 'ベンチプレス')
@@ -416,11 +385,13 @@ describe('ExerciseForm', () => {
       }
 
       render(
-        <ExerciseForm
-          initialExercise={initialExercise}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <FeedbackProvider>
+          <ExerciseForm
+            initialExercise={initialExercise}
+            onSubmit={mockOnSubmit}
+            onCancel={mockOnCancel}
+          />
+        </FeedbackProvider>
       )
 
       await waitFor(() => {
@@ -441,11 +412,13 @@ describe('ExerciseForm', () => {
       }
 
       render(
-        <ExerciseForm
-          initialExercise={initialExercise}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <FeedbackProvider>
+          <ExerciseForm
+            initialExercise={initialExercise}
+            onSubmit={mockOnSubmit}
+            onCancel={mockOnCancel}
+          />
+        </FeedbackProvider>
       )
 
       const nameInput = screen.getByPlaceholderText('種目名を入力...')
@@ -468,11 +441,13 @@ describe('ExerciseForm', () => {
       }
 
       render(
-        <ExerciseForm
-          initialExercise={initialExercise}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <FeedbackProvider>
+          <ExerciseForm
+            initialExercise={initialExercise}
+            onSubmit={mockOnSubmit}
+            onCancel={mockOnCancel}
+          />
+        </FeedbackProvider>
       )
 
       expect(screen.getByRole('button', { name: '更新' })).toBeInTheDocument()
@@ -486,11 +461,13 @@ describe('ExerciseForm', () => {
       }
 
       render(
-        <ExerciseForm
-          initialExercise={initialExercise}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <FeedbackProvider>
+          <ExerciseForm
+            initialExercise={initialExercise}
+            onSubmit={mockOnSubmit}
+            onCancel={mockOnCancel}
+          />
+        </FeedbackProvider>
       )
 
       const submitButton = screen.getByRole('button', { name: '更新' })
@@ -506,9 +483,7 @@ describe('ExerciseForm', () => {
 
   describe('キャンセル', () => {
     it('キャンセルボタンでonCancelが呼ばれる', async () => {
-      render(
-        <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
-      )
+      renderForm()
 
       const cancelButton = screen.getByRole('button', { name: 'キャンセル' })
       await userEvent.click(cancelButton)

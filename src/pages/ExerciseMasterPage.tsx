@@ -6,6 +6,7 @@ import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { EXERCISE_BODY_PARTS, EXERCISE_CATEGORIES } from '../utils/exerciseMetadata'
 import type { ExerciseBodyPart, ExerciseCategory } from '../types'
+import { useFeedback } from '../components/feedback'
 
 function getNextMetadata(
   isBodyweight: boolean,
@@ -31,6 +32,7 @@ function getNextMetadata(
 }
 
 export function ExerciseMasterPage() {
+  const { showToast, confirm } = useFeedback()
   const [newName, setNewName] = useState('')
   const [newIsBodyweight, setNewIsBodyweight] = useState(false)
   const [newIsCardio, setNewIsCardio] = useState(false)
@@ -54,7 +56,7 @@ export function ExerciseMasterPage() {
 
     const existing = await db.exerciseMasters.where('name').equals(newName.trim()).first()
     if (existing) {
-      alert('同じ名前の種目が既に存在します')
+      showToast('同じ名前の種目が既に存在します', 'error')
       return
     }
 
@@ -78,7 +80,7 @@ export function ExerciseMasterPage() {
 
     const existing = await db.exerciseMasters.where('name').equals(editingName.trim()).first()
     if (existing && existing.id !== id) {
-      alert('同じ名前の種目が既に存在します')
+      showToast('同じ名前の種目が既に存在します', 'error')
       return
     }
 
@@ -98,7 +100,13 @@ export function ExerciseMasterPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('この種目を削除しますか？')) return
+    const confirmed = await confirm({
+      title: 'この種目を削除しますか？',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     await db.exerciseMasters.delete(id)
   }
 

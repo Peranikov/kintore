@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { db } from '../db'
 import { LogDetailPage } from './LogDetailPage'
+import { FeedbackProvider } from '../components/FeedbackProvider'
 
 function Navigator({ firstId, secondId }: { firstId: number; secondId: number }) {
   const navigate = useNavigate()
@@ -62,12 +63,14 @@ async function seedLogs() {
 
 function renderPage(initialEntry: string, logIds: { firstId: number; secondId: number }) {
   render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Navigator firstId={logIds.firstId} secondId={logIds.secondId} />
-      <Routes>
-        <Route path="/log/:id" element={<LogDetailPage />} />
-      </Routes>
-    </MemoryRouter>
+    <FeedbackProvider>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Navigator firstId={logIds.firstId} secondId={logIds.secondId} />
+        <Routes>
+          <Route path="/log/:id" element={<LogDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </FeedbackProvider>
   )
 }
 

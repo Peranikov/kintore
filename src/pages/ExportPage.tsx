@@ -6,6 +6,7 @@ import type { WorkoutLog, ExerciseMaster } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { formatLocalDate } from '../utils/date'
+import { useFeedback } from '../components/feedback'
 
 function formatDateString(date: Date): string {
   return formatLocalDate(date)
@@ -88,6 +89,7 @@ function generateExportText(
 }
 
 export function ExportPage() {
+  const { showToast } = useFeedback()
   const today = formatDateString(new Date())
   const [startDate, setStartDate] = useState(getMonthStart(new Date()))
   const [endDate, setEndDate] = useState(today)
@@ -140,7 +142,7 @@ export function ExportPage() {
 
   function copyToClipboard() {
     navigator.clipboard.writeText(exportText).then(() => {
-      alert('クリップボードにコピーしました')
+      showToast('クリップボードにコピーしました', 'success')
     })
   }
 

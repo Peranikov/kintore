@@ -3,6 +3,7 @@ import { db } from '../db'
 import type { Exercise, Set, ExerciseMaster } from '../types'
 import { calculateProgress } from '../utils/progressCalculations'
 import { ProgressIndicator } from './ProgressIndicator'
+import { useFeedback } from './feedback'
 
 interface LastRecord {
   date: string
@@ -32,6 +33,7 @@ function areSameMasterExercises(a: ExerciseMaster[], b: ExerciseMaster[]): boole
 }
 
 export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFormProps) {
+  const { showToast } = useFeedback()
   const [name, setName] = useState(initialExercise?.name || '')
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
   const [masterExercises, setMasterExercises] = useState<ExerciseMaster[]>([])
@@ -203,22 +205,22 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
-      alert('種目名を入力してください')
+      showToast('種目名を入力してください', 'error')
       return
     }
     if (isCardio) {
       if (!sets[0]?.duration || sets[0].duration <= 0) {
-        alert('時間を正しく入力してください')
+        showToast('時間を正しく入力してください', 'error')
         return
       }
     } else if (isBodyweight) {
       if (sets.some(s => s.reps <= 0)) {
-        alert('回数を正しく入力してください')
+        showToast('回数を正しく入力してください', 'error')
         return
       }
     } else {
       if (sets.some(s => s.weight < 0 || s.reps <= 0)) {
-        alert('重量と回数を正しく入力してください')
+        showToast('重量と回数を正しく入力してください', 'error')
         return
       }
     }
