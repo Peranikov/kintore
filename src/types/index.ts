@@ -43,6 +43,39 @@ export interface WorkoutAnalysisSnapshot {
   nextActions: string[]
 }
 
+export interface ProgressTrendMetric {
+  label: string
+  current: number
+  previous: number
+  diff: number
+  diffPercent: number
+  status: ProgressStatus
+  unit: string
+}
+
+export interface ExerciseTrendAnalysis {
+  exerciseName: string
+  lastDate: string
+  recordCount: number
+  primaryMetric?: ProgressTrendMetric
+  summary: string
+}
+
+export interface ProgressPeriodSummary {
+  fromDate: string
+  toDate: string
+  sessionCount: number
+  weeklyFrequency: number
+  bodyPartSetCounts: Partial<Record<ExerciseBodyPart, number>>
+}
+
+export interface ProgressAnalysisSnapshot {
+  generatedAt: number
+  periodSummary: ProgressPeriodSummary
+  exerciseTrends: ExerciseTrendAnalysis[]
+  nextGoals: string[]
+}
+
 export type ExerciseBodyPart =
   | '胸'
   | '背中'

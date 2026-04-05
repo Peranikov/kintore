@@ -7,11 +7,13 @@ import type {
   StructuredUserProfile,
   ExerciseBodyPart,
   WorkoutAnalysisSnapshot,
+  ProgressAnalysisSnapshot,
   Set as WorkoutSet,
 } from '../types'
 import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { buildWorkoutAnalysis, formatAnalysisForPrompt } from './workoutAnalysis'
+import { buildProgressAnalysis, formatProgressAnalysisForPrompt } from './progressAnalysis'
 import { formatDeloadForPrompt } from '../utils/periodization'
 import { EXERCISE_BODY_PARTS } from '../utils/exerciseMetadata'
 import { formatLocalDate, todayLocalDate } from '../utils/date'
@@ -905,7 +907,7 @@ ${formatAnalysisForPrompt(log, analysis)}
 }
 
 // 総合進捗評価を生成（グラフページ用）
-export async function generateProgressEvaluation(): Promise<string> {
+export async function generateProgressEvaluation(): Promise<{ text: string; analysis: ProgressAnalysisSnapshot }> {
   const apiKey = await getApiKey()
   if (!apiKey) {
     throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
@@ -921,95 +923,27 @@ export async function generateProgressEvaluation(): Promise<string> {
   if (recentLogs.length < 2) {
     throw new Error('評価には最低2回以上のトレーニング記録が必要です。')
   }
-
-  // 種目ごとの進捗データを集計
-  const exerciseProgress: { [name: string]: { dates: string[]; maxWeights: number[]; maxReps: number[]; maxDurations: number[]; maxDistances: number[]; isBodyweight: boolean; isCardio: boolean } } = {}
-
-  recentLogs.forEach(log => {
-    log.exercises.forEach(ex => {
-      const master = exerciseMasters.find(m => m.name === ex.name)
-      const isBodyweight = master?.isBodyweight || false
-      const isCardio = master?.isCardio || false
-
-      if (!exerciseProgress[ex.name]) {
-        exerciseProgress[ex.name] = { dates: [], maxWeights: [], maxReps: [], maxDurations: [], maxDistances: [], isBodyweight, isCardio }
-      }
-      exerciseProgress[ex.name].dates.push(log.date)
-
-      if (isCardio) {
-        const maxDuration = Math.max(...ex.sets.map(s => s.duration ?? 0))
-        const maxDistance = Math.max(...ex.sets.map(s => s.distance ?? 0))
-        exerciseProgress[ex.name].maxDurations.push(maxDuration)
-        exerciseProgress[ex.name].maxDistances.push(maxDistance)
-      } else {
-        const maxWeight = Math.max(...ex.sets.map(s => s.weight))
-        const maxReps = Math.max(...ex.sets.map(s => s.reps))
-        exerciseProgress[ex.name].maxWeights.push(maxWeight)
-        exerciseProgress[ex.name].maxReps.push(maxReps)
-      }
-    })
-  })
-
-  // 進捗サマリを作成
-  const progressSummary = Object.entries(exerciseProgress).map(([name, data]) => {
-    if (data.isCardio) {
-      const firstDuration = data.maxDurations[data.maxDurations.length - 1]
-      const lastDuration = data.maxDurations[0]
-      const durationDiff = lastDuration - firstDuration
-      const distancePart = data.maxDistances.some(d => d > 0)
-        ? (() => {
-            const firstDist = data.maxDistances[data.maxDistances.length - 1]
-            const lastDist = data.maxDistances[0]
-            const distDiff = lastDist - firstDist
-            return `、距離: ${firstDist}km → ${lastDist}km（${distDiff >= 0 ? '+' : ''}${distDiff.toFixed(1)}km）`
-          })()
-        : ''
-      return `- ${name}（有酸素）: ${firstDuration}分 → ${lastDuration}分（${durationDiff >= 0 ? '+' : ''}${durationDiff}分）${distancePart}`
-    } else if (data.isBodyweight) {
-      const first = data.maxReps[data.maxReps.length - 1]
-      const last = data.maxReps[0]
-      const repsDiff = last - first
-      return `- ${name}（自重）: ${first}回 → ${last}回（${repsDiff >= 0 ? '+' : ''}${repsDiff}回）`
-    } else {
-      const first = data.maxWeights[data.maxWeights.length - 1]
-      const last = data.maxWeights[0]
-      const weightDiff = last - first
-      return `- ${name}: ${first}kg → ${last}kg（${weightDiff >= 0 ? '+' : ''}${weightDiff}kg）`
-    }
-  }).join('\n')
-
-  // トレーニング頻度を計算
-  const sortedDates = recentLogs.map(l => l.date).sort()
-  const firstDate = sortedDates[0]
-  const lastDate = sortedDates[sortedDates.length - 1]
-  const daysDiff = Math.ceil((new Date(lastDate).getTime() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const frequency = recentLogs.length / (daysDiff / 7)
+  const earliestDate = recentLogs.map((log) => log.date).sort()[0]
+  const analysis = buildProgressAnalysis(recentLogs, exerciseMasters, earliestDate)
 
   const prompt = `あなたは経験豊富なパーソナルトレーナーです。
-ユーザーの過去のトレーニング履歴を分析し、総合的な進捗評価を行ってください。
+ユーザーの過去のトレーニング分析結果を要約し、総合的な進捗評価を行ってください。
 
-【分析対象データ】
-■ 期間: ${firstDate} 〜 ${lastDate}（${recentLogs.length}回のトレーニング、週${frequency.toFixed(1)}回ペース）
-
-■ 種目別の進捗
-${progressSummary}
+【重要な制約】
+1. 与えられた分析結果に含まれる事実だけを使ってください
+2. 頻度、種目トレンド、部位バランスを優先して評価してください
+3. 特に伸びている点と改善点を両方含めてください
+4. 最後に次の目標を1〜2個だけ示してください
 
 ${profile ? `■ ユーザープロフィール\n${profile}\n` : ''}
-■ 直近のトレーニング詳細
-${formatWorkoutLogs(recentLogs.slice(0, 5))}
-
-【評価ポイント】
-1. 各種目の重量・回数の伸び具合
-2. トレーニング頻度は適切か
-3. 種目のバランス（部位の偏りがないか）
-4. 特に伸びている種目と停滞している種目
-5. 今後の具体的な改善アドバイス
+■ 分析結果
+${formatProgressAnalysisForPrompt(analysis)}
 
 【出力形式】
-・300-400文字程度の総合評価
+・220-320文字程度の総合評価
 ・伸びている点、改善点を具体的に
 ・次の目標設定のアドバイスを含む
-・絵文字を適度に使用してフレンドリーに`
+・絵文字は使わない`
 
   const response = await fetch(`${getApiUrl(model)}?key=${apiKey}`, {
     method: 'POST',
@@ -1023,7 +957,7 @@ ${formatWorkoutLogs(recentLogs.slice(0, 5))}
         },
       ],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.2,
         maxOutputTokens: 2048,
         // Gemini 2.5 Flashの思考機能を無効化（トークン効率化）
         thinkingConfig: {
@@ -1045,7 +979,7 @@ ${formatWorkoutLogs(recentLogs.slice(0, 5))}
     throw new Error('APIからの応答が空です')
   }
 
-  return text
+  return { text, analysis }
 }
 
 // プランを生成

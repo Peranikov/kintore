@@ -36,7 +36,7 @@ export function getProgressStatus(current: number, previous: number): ProgressSt
 /**
  * 進捗メトリックを計算
  */
-function createProgressMetric(current: number, previous: number): ProgressMetric {
+export function createProgressMetric(current: number, previous: number): ProgressMetric {
   const diff = current - previous
   const diffPercent = previous !== 0 ? Math.round((diff / previous) * 1000) / 10 : (current > 0 ? 100 : 0)
 

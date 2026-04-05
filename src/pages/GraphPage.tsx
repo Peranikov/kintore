@@ -13,17 +13,20 @@ import {
   Legend,
 } from 'recharts'
 import { db } from '../db'
+import type { ProgressAnalysisSnapshot } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { generateProgressEvaluation, getApiKey } from '../services/gemini'
 import { buildExerciseChartData } from '../utils/graphCalculations'
 import { formatLocalDate } from '../utils/date'
+import { getProgressColorClass, getProgressIcon } from '../utils/progressCalculations'
 
 export function GraphPage() {
   const logs = useLiveQuery(() => db.workoutLogs.toArray(), [])
   const exerciseMasters = useLiveQuery(() => db.exerciseMasters.toArray(), [])
 
   const [evaluation, setEvaluation] = useState<string | null>(null)
+  const [analysis, setAnalysis] = useState<ProgressAnalysisSnapshot | null>(null)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
 
@@ -39,10 +42,12 @@ export function GraphPage() {
     setEvaluationLoading(true)
     setEvaluationError(null)
     setEvaluation(null)
+    setAnalysis(null)
 
     try {
       const result = await generateProgressEvaluation()
-      setEvaluation(result)
+      setEvaluation(result.text)
+      setAnalysis(result.analysis)
     } catch (e) {
       setEvaluationError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -95,6 +100,71 @@ export function GraphPage() {
                 </div>
               ) : evaluation ? (
                 <div>
+                  {analysis && (
+                    <div className="mb-4 space-y-4">
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2">期間サマリー</h3>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <div className="text-gray-500">対象期間</div>
+                            <div className="font-medium">{analysis.periodSummary.fromDate} - {analysis.periodSummary.toDate}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500">週あたり頻度</div>
+                            <div className="font-medium">週{analysis.periodSummary.weeklyFrequency}回</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {Object.entries(analysis.periodSummary.bodyPartSetCounts).map(([bodyPart, sets]) => (
+                            <span key={bodyPart} className="rounded-full bg-white px-2 py-1 text-xs text-gray-700">
+                              {bodyPart}: {sets}セット
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2">種目トレンド</h3>
+                        <div className="space-y-3">
+                          {analysis.exerciseTrends.map((trend) => (
+                            <div key={trend.exerciseName} className="rounded-lg border border-gray-200 p-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <div className="font-medium text-gray-800">{trend.exerciseName}</div>
+                                  <div className="text-xs text-gray-500">
+                                    最新 {trend.lastDate} / 記録 {trend.recordCount}回
+                                  </div>
+                                </div>
+                                {trend.primaryMetric && (
+                                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${getProgressColorClass(trend.primaryMetric.status)}`}>
+                                    <span>{getProgressIcon(trend.primaryMetric.status)}</span>
+                                    <span>{trend.primaryMetric.diffPercent}%</span>
+                                  </span>
+                                )}
+                              </div>
+                              {trend.primaryMetric && (
+                                <div className="mt-2 text-sm text-gray-700">
+                                  {trend.primaryMetric.label}: {trend.primaryMetric.previous}{trend.primaryMetric.unit} → {trend.primaryMetric.current}{trend.primaryMetric.unit}
+                                </div>
+                              )}
+                              <p className="mt-2 text-sm text-gray-700">{trend.summary}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {analysis.nextGoals.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-800 mb-2">次の目標</h3>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {analysis.nextGoals.map((goal) => (
+                              <li key={goal}>- {goal}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="prose prose-sm max-w-none text-gray-700">
                     <Markdown>{evaluation}</Markdown>
                   </div>
