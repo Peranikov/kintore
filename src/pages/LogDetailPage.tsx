@@ -18,10 +18,8 @@ export function LogDetailPage() {
   const [editingExerciseIndex, setEditingExerciseIndex] = useState<number | null>(null)
   const [isAddingExercise, setIsAddingExercise] = useState(false)
   const [memo, setMemo] = useState('')
-  const [memoInitialized, setMemoInitialized] = useState(false)
   const [evaluation, setEvaluation] = useState<string | null>(null)
   const [evaluationGeneratedAt, setEvaluationGeneratedAt] = useState<number | null>(null)
-  const [evaluationInitialized, setEvaluationInitialized] = useState(false)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
   const [previousRecords, setPreviousRecords] = useState<Record<string, Set[]>>({})
@@ -58,17 +56,16 @@ export function LogDetailPage() {
     return master?.isCardio || false
   }
 
-  if (log && !memoInitialized) {
+  useEffect(() => {
+    if (!log || isEditing) return
     setMemo(log.memo || '')
-    setMemoInitialized(true)
-  }
+  }, [log?.id, log?.memo, isEditing, log])
 
-  // 保存済み評価を読み込み
-  if (log && !evaluationInitialized) {
+  useEffect(() => {
+    if (!log) return
     setEvaluation(log.evaluation || null)
     setEvaluationGeneratedAt(log.evaluationGeneratedAt || null)
-    setEvaluationInitialized(true)
-  }
+  }, [log?.id, log?.evaluation, log?.evaluationGeneratedAt, log])
 
   // 前回記録を取得
   useEffect(() => {
