@@ -58,7 +58,7 @@ describe('ExerciseForm', () => {
       )
 
       const submitButton = screen.getByRole('button', { name: '追加' })
-      fireEvent.click(submitButton)
+      await userEvent.click(submitButton)
 
       expect(mockAlert).toHaveBeenCalledWith('種目名を入力してください')
       expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('ExerciseForm', () => {
       await userEvent.type(nameInput, 'ベンチプレス')
 
       const submitButton = screen.getByRole('button', { name: '追加' })
-      fireEvent.click(submitButton)
+      await userEvent.click(submitButton)
 
       expect(mockAlert).toHaveBeenCalledWith('重量と回数を正しく入力してください')
       expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -94,7 +94,7 @@ describe('ExerciseForm', () => {
       await userEvent.type(inputs[1], '10')
 
       const submitButton = screen.getByRole('button', { name: '追加' })
-      fireEvent.click(submitButton)
+      await userEvent.click(submitButton)
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -127,7 +127,7 @@ describe('ExerciseForm', () => {
       })
 
       const submitButton = screen.getByRole('button', { name: '追加' })
-      fireEvent.click(submitButton)
+      await userEvent.click(submitButton)
 
       expect(mockAlert).toHaveBeenCalledWith('回数を正しく入力してください')
     })
@@ -148,7 +148,7 @@ describe('ExerciseForm', () => {
       )
 
       const addButton = screen.getByText('+ セットを追加')
-      fireEvent.click(addButton)
+      await userEvent.click(addButton)
 
       expect(screen.getByText('2.')).toBeInTheDocument()
     })
@@ -167,7 +167,7 @@ describe('ExerciseForm', () => {
 
       // Add new set
       const addButton = screen.getByText('+ セットを追加')
-      fireEvent.click(addButton)
+      await userEvent.click(addButton)
 
       // Check new set has same values
       await waitFor(() => {
@@ -184,13 +184,13 @@ describe('ExerciseForm', () => {
 
       // Add a second set first
       const addButton = screen.getByText('+ セットを追加')
-      fireEvent.click(addButton)
+      await userEvent.click(addButton)
 
       expect(screen.getByText('2.')).toBeInTheDocument()
 
       // Delete the second set
       const deleteButtons = screen.getAllByTitle('削除')
-      fireEvent.click(deleteButtons[1])
+      await userEvent.click(deleteButtons[1])
 
       expect(screen.queryByText('2.')).not.toBeInTheDocument()
     })
@@ -218,7 +218,7 @@ describe('ExerciseForm', () => {
 
       // Click clear button
       const clearButton = screen.getByTitle('クリア')
-      fireEvent.click(clearButton)
+      await userEvent.click(clearButton)
 
       // Values should be reset
       await waitFor(() => {
@@ -277,7 +277,7 @@ describe('ExerciseForm', () => {
 
       // Add second set first
       const addButton = screen.getByText('+ セットを追加')
-      fireEvent.click(addButton)
+      await userEvent.click(addButton)
 
       await waitFor(() => {
         expect(screen.getByText('2.')).toBeInTheDocument()
@@ -395,7 +395,7 @@ describe('ExerciseForm', () => {
       )
 
       const copyButton = screen.getByText('コピー')
-      fireEvent.click(copyButton)
+      await userEvent.click(copyButton)
 
       // Check that sets were copied (2 sets)
       await waitFor(() => {
@@ -423,10 +423,9 @@ describe('ExerciseForm', () => {
         />
       )
 
-      // Wait a bit for potential fetch
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      expect(screen.queryByText(/前回の記録/)).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByText(/前回の記録/)).not.toBeInTheDocument()
+      })
     })
   })
 
@@ -495,7 +494,7 @@ describe('ExerciseForm', () => {
       )
 
       const submitButton = screen.getByRole('button', { name: '更新' })
-      fireEvent.click(submitButton)
+      await userEvent.click(submitButton)
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -506,13 +505,13 @@ describe('ExerciseForm', () => {
   })
 
   describe('キャンセル', () => {
-    it('キャンセルボタンでonCancelが呼ばれる', () => {
+    it('キャンセルボタンでonCancelが呼ばれる', async () => {
       render(
         <ExerciseForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
       )
 
       const cancelButton = screen.getByRole('button', { name: 'キャンセル' })
-      fireEvent.click(cancelButton)
+      await userEvent.click(cancelButton)
 
       expect(mockOnCancel).toHaveBeenCalled()
     })

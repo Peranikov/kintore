@@ -15,6 +15,20 @@ interface ExerciseFormProps {
   onCancel: () => void
 }
 
+function areSameMasterExercises(a: ExerciseMaster[], b: ExerciseMaster[]): boolean {
+  if (a.length !== b.length) return false
+
+  return a.every((exercise, index) => {
+    const other = b[index]
+    return (
+      exercise.id === other.id &&
+      exercise.name === other.name &&
+      exercise.isBodyweight === other.isBodyweight &&
+      exercise.isCardio === other.isCardio
+    )
+  })
+}
+
 export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFormProps) {
   const [name, setName] = useState(initialExercise?.name || '')
   const [sets, setSets] = useState<Set[]>(initialExercise?.sets || [{ weight: 0, reps: 0 }])
@@ -26,7 +40,22 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
   const distanceRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    db.exerciseMasters.orderBy('name').toArray().then(setMasterExercises)
+    let cancelled = false
+
+    async function loadMasterExercises() {
+      const exercises = await db.exerciseMasters.orderBy('name').toArray()
+      if (!cancelled) {
+        setMasterExercises((current) => (
+          areSameMasterExercises(current, exercises) ? current : exercises
+        ))
+      }
+    }
+
+    loadMasterExercises()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // useMemoで計算 - setStateをeffect内で呼ばない
@@ -80,8 +109,6 @@ export function ExerciseForm({ initialExercise, onSubmit, onCancel }: ExerciseFo
 
     return () => {
       cancelled = true
-      // クリーンアップ時にnullにリセット
-      setLastRecord(null)
     }
   }, [name, initialExercise])
 
