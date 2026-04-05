@@ -8,8 +8,11 @@
 
 ```bash
 npm install
+npm run hooks:install
 npm run dev
 ```
+
+`pre-commit` では、実装変更を含む staged 差分に対して `docs/SPEC.md` の staged 更新を要求します。
 
 ## Scripts
 
