@@ -3,11 +3,14 @@ import {
   formatWorkoutLogs,
   formatExerciseMasters,
   formatStructuredUserProfile,
+  formatBodyPartWeeklySetSummary,
+  formatBodyPartLastPerformedSummary,
+  formatStagnationSummary,
   buildPrompt,
   parseGeneratedPlan,
   EMPTY_STRUCTURED_USER_PROFILE,
 } from './gemini'
-import type { WorkoutLog, ExerciseMaster } from '../types'
+import type { WorkoutLog, ExerciseMaster, StagnationInfo } from '../types'
 
 describe('formatWorkoutLogs', () => {
   it('空の配列の場合、メッセージを返す', () => {
@@ -164,6 +167,56 @@ describe('formatStructuredUserProfile', () => {
 
   it('空欄のみならnullを返す', () => {
     expect(formatStructuredUserProfile(EMPTY_STRUCTURED_USER_PROFILE)).toBeNull()
+  })
+})
+
+describe('AI plan summaries', () => {
+  const masters: ExerciseMaster[] = [
+    { id: 1, name: 'ベンチプレス', bodyPart: '胸', category: 'コンパウンド', createdAt: Date.now() },
+    { id: 2, name: 'ラットプルダウン', bodyPart: '背中', category: 'コンパウンド', createdAt: Date.now() },
+  ]
+
+  const logs: WorkoutLog[] = [
+    {
+      id: 1,
+      date: '2024-01-15',
+      exercises: [
+        { id: 'ex1', name: 'ベンチプレス', sets: [{ weight: 60, reps: 10 }, { weight: 60, reps: 10 }] },
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+    {
+      id: 2,
+      date: '2024-01-13',
+      exercises: [
+        { id: 'ex2', name: 'ラットプルダウン', sets: [{ weight: 50, reps: 12 }] },
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+  ]
+
+  it('部位ごとの週セット数をフォーマットする', () => {
+    const result = formatBodyPartWeeklySetSummary(logs, masters)
+    expect(result).toContain('直近1週間（2024-01-09〜2024-01-15）')
+    expect(result).toContain('胸: 2セット')
+    expect(result).toContain('背中: 1セット')
+  })
+
+  it('部位ごとの前回実施日をフォーマットする', () => {
+    const result = formatBodyPartLastPerformedSummary(logs, masters)
+    expect(result).toContain('胸: 2024-01-15')
+    expect(result).toContain('背中: 2024-01-13')
+  })
+
+  it('停滞中の種目をフォーマットする', () => {
+    const stagnationInfos: StagnationInfo[] = [
+      { exerciseName: 'ベンチプレス', metric: '推定1RM', value: 80, unit: 'kg', weeks: 3 },
+    ]
+    const result = formatStagnationSummary(stagnationInfos)
+    expect(result).toContain('ベンチプレス')
+    expect(result).toContain('3週間停滞')
   })
 })
 
@@ -324,6 +377,29 @@ describe('buildPrompt', () => {
     expect(result).toContain('最近のトレーニング履歴')
     expect(result).toContain('2024-01-15')
     expect(result).toContain('60kg×10回')
+  })
+
+  it('AI判断用サマリが含まれる', () => {
+    const masters: ExerciseMaster[] = [
+      { id: 1, name: 'ベンチプレス', bodyPart: '胸', category: 'コンパウンド', createdAt: Date.now() },
+    ]
+    const logs: WorkoutLog[] = [
+      {
+        id: 1,
+        date: '2024-01-15',
+        exercises: [
+          { id: 'ex1', name: 'ベンチプレス', sets: [{ weight: 60, reps: 10 }, { weight: 60, reps: 8 }] },
+        ],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ]
+
+    const result = buildPrompt(null, masters, logs, '')
+
+    expect(result).toContain('AI判断用サマリ')
+    expect(result).toContain('胸: 2セット')
+    expect(result).toContain('胸: 2024-01-15')
   })
 
   it('ユーザーメモが含まれる', () => {

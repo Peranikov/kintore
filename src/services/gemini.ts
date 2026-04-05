@@ -9,6 +9,7 @@ import type {
 import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { formatDeloadForPrompt } from '../utils/periodization'
+import { EXERCISE_BODY_PARTS } from '../utils/exerciseMetadata'
 
 export const GEMINI_MODELS = [
   { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite (Preview)', description: 'コスパ良・最新' },
@@ -64,6 +65,12 @@ export interface GeneratedExercise {
 export interface GeneratedPlan {
   exercises: GeneratedExercise[]
   advice?: string
+}
+
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(dateStr)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().split('T')[0]
 }
 
 const STRUCTURED_USER_PROFILE_KEY = 'structuredUserProfile'
@@ -263,6 +270,97 @@ export function formatExerciseMasters(masters: ExerciseMaster[]): string {
   }).join('\n')
 }
 
+export function formatBodyPartWeeklySetSummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+): string {
+  if (logs.length === 0) {
+    return '直近1週間の記録はありません。'
+  }
+
+  const latestLogDate = logs.reduce((latest, log) => log.date > latest ? log.date : latest, logs[0].date)
+  const windowStart = addDays(latestLogDate, -6)
+  const setCounts = new Map<string, number>()
+
+  logs
+    .filter((log) => log.date >= windowStart && log.date <= latestLogDate)
+    .forEach((log) => {
+      log.exercises.forEach((exercise) => {
+        const master = exerciseMasters.find((item) => item.name === exercise.name)
+        const bodyPart = master?.bodyPart || 'その他'
+        setCounts.set(bodyPart, (setCounts.get(bodyPart) || 0) + exercise.sets.length)
+      })
+    })
+
+  const lines = EXERCISE_BODY_PARTS
+    .map((bodyPart) => {
+      const count = setCounts.get(bodyPart)
+      return count ? `- ${bodyPart}: ${count}セット` : null
+    })
+    .filter(Boolean)
+
+  return lines.length > 0
+    ? `直近1週間（${windowStart}〜${latestLogDate}）の部位別セット数\n${lines.join('\n')}`
+    : '直近1週間の記録はありません。'
+}
+
+export function formatBodyPartLastPerformedSummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+): string {
+  if (logs.length === 0) {
+    return '部位ごとの前回実施日はありません。'
+  }
+
+  const lastPerformedMap = new Map<string, string>()
+
+  logs.forEach((log) => {
+    log.exercises.forEach((exercise) => {
+      const master = exerciseMasters.find((item) => item.name === exercise.name)
+      const bodyPart = master?.bodyPart || 'その他'
+      const current = lastPerformedMap.get(bodyPart)
+      if (!current || log.date > current) {
+        lastPerformedMap.set(bodyPart, log.date)
+      }
+    })
+  })
+
+  const lines = EXERCISE_BODY_PARTS
+    .map((bodyPart) => {
+      const date = lastPerformedMap.get(bodyPart)
+      return date ? `- ${bodyPart}: ${date}` : null
+    })
+    .filter(Boolean)
+
+  return lines.length > 0
+    ? `部位ごとの前回実施日\n${lines.join('\n')}`
+    : '部位ごとの前回実施日はありません。'
+}
+
+export function formatStagnationSummary(stagnationInfos: StagnationInfo[]): string {
+  if (stagnationInfos.length === 0) {
+    return '停滞中の種目はありません。'
+  }
+
+  const lines = stagnationInfos
+    .slice(0, 5)
+    .map((info) => `- ${info.exerciseName}: ${info.metric} ${info.value}${info.unit} / ${info.weeks}週間停滞`)
+
+  return `停滞中の種目\n${lines.join('\n')}`
+}
+
+export function formatAiPlanContextSummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+  stagnationInfos: StagnationInfo[],
+): string {
+  return [
+    formatBodyPartWeeklySetSummary(logs, exerciseMasters),
+    formatBodyPartLastPerformedSummary(logs, exerciseMasters),
+    formatStagnationSummary(stagnationInfos),
+  ].join('\n\n')
+}
+
 // プロンプトを構築
 export function buildPrompt(
   profile: string | null,
@@ -303,6 +401,10 @@ export function buildPrompt(
 
   const historySection = `\n\n■ 最近のトレーニング履歴（直近7回分）\n${formatWorkoutLogs(recentLogs)}`
 
+  const trainingSummarySection = recentLogs.length > 0 || stagnationInfos.length > 0
+    ? `\n\n■ AI判断用サマリ\n${formatAiPlanContextSummary(recentLogs, exerciseMasters, stagnationInfos)}`
+    : ''
+
   // 直近の評価を取得してプロンプトに追加
   const latestEvaluation = recentLogs.find(log => log.evaluation)?.evaluation
   const evaluationSection = latestEvaluation
@@ -323,7 +425,7 @@ export function buildPrompt(
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${trainingSummarySection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
 }
 
 // JSONを抽出してパース
