@@ -179,6 +179,8 @@
 
 ユーザーが取得したGemini APIキーを使用してAI機能を提供。APIキーはIndexedDBにローカル保存。
 
+AIプランの詳細な決定ロジックは [docs/AI_PLAN.md](/home/peranikov/ghq/github.com/peranikov/kintore/docs/AI_PLAN.md) を参照。
+
 #### AI設定（/ai-settings）
 - Gemini APIキーの入力・保存
 - ユーザープロフィール設定
