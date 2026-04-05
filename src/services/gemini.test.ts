@@ -118,7 +118,24 @@ describe('formatExerciseMasters', () => {
 
     const result = formatExerciseMasters(masters)
     expect(result).toContain('- ベンチプレス')
-    expect(result).toContain('- チンニング（自重）')
+    expect(result).toContain('チンニング')
+    expect(result).toContain('種別: 自重')
+  })
+
+  it('部位とカテゴリをフォーマットする', () => {
+    const masters: ExerciseMaster[] = [
+      {
+        id: 1,
+        name: 'ベンチプレス',
+        bodyPart: '胸',
+        category: 'コンパウンド',
+        createdAt: Date.now(),
+      },
+    ]
+
+    const result = formatExerciseMasters(masters)
+    expect(result).toContain('部位: 胸')
+    expect(result).toContain('カテゴリ: コンパウンド')
   })
 })
 

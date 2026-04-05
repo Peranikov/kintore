@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { WorkoutLog, ExerciseMaster, AppSettings } from '../types'
+import { inferExerciseMetadata } from '../utils/exerciseMetadata'
 
 const db = new Dexie('TrainingLogDB') as Dexie & {
   workoutLogs: EntityTable<WorkoutLog, 'id'>
@@ -71,6 +72,33 @@ db.version(7).stores({
   appSettings: '++id, &key',
 })
 
+// Version 8: ExerciseMasterにbodyPart, categoryを追加
+db.version(8).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+}).upgrade(async (tx) => {
+  const table = tx.table('exerciseMasters')
+  const masters = await table.toArray()
+
+  for (const master of masters) {
+    const inferred = inferExerciseMetadata(master)
+    const updates: Partial<ExerciseMaster> = {}
+
+    if (!master.bodyPart && inferred.bodyPart) {
+      updates.bodyPart = inferred.bodyPart
+    }
+
+    if (!master.category && inferred.category) {
+      updates.category = inferred.category
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await table.update(master.id, updates)
+    }
+  }
+})
+
 const PRESET_EXERCISES = [
   // 筋トレマシン
   'チェストプレス',
@@ -131,6 +159,7 @@ async function seedExercises() {
     const now = Date.now()
     await db.exerciseMasters.bulkAdd(
       PRESET_EXERCISES.map((name) => ({
+        ...inferExerciseMetadata({ name, isCardio: CARDIO_EXERCISES.includes(name) || undefined }),
         name,
         isCardio: CARDIO_EXERCISES.includes(name) || undefined,
         createdAt: now,

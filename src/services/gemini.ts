@@ -250,8 +250,16 @@ export function formatWorkoutLogs(logs: WorkoutLog[]): string {
 // 器具マスタをフォーマット
 export function formatExerciseMasters(masters: ExerciseMaster[]): string {
   return masters.map(m => {
-    const suffix = m.isBodyweight ? '（自重）' : m.isCardio ? '（有酸素）' : ''
-    return `- ${m.name}${suffix}`
+    const details = [
+      m.bodyPart && `部位: ${m.bodyPart}`,
+      m.category && `カテゴリ: ${m.category}`,
+      m.isBodyweight && '種別: 自重',
+      m.isCardio && '種別: 有酸素',
+    ].filter(Boolean)
+
+    return details.length > 0
+      ? `- ${m.name}（${details.join(' / ')}）`
+      : `- ${m.name}`
   }).join('\n')
 }
 

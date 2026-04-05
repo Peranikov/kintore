@@ -24,7 +24,9 @@ function areSameMasterExercises(a: ExerciseMaster[], b: ExerciseMaster[]): boole
       exercise.id === other.id &&
       exercise.name === other.name &&
       exercise.isBodyweight === other.isBodyweight &&
-      exercise.isCardio === other.isCardio
+      exercise.isCardio === other.isCardio &&
+      exercise.bodyPart === other.bodyPart &&
+      exercise.category === other.category
     )
   })
 }

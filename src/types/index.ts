@@ -22,11 +22,29 @@ export interface WorkoutLog {
   updatedAt: number
 }
 
+export type ExerciseBodyPart =
+  | '胸'
+  | '背中'
+  | '肩'
+  | '脚'
+  | '腕'
+  | '体幹'
+  | '有酸素'
+  | 'その他'
+
+export type ExerciseCategory =
+  | 'コンパウンド'
+  | 'アイソレーション'
+  | '自重'
+  | '有酸素'
+
 export interface ExerciseMaster {
   id?: number
   name: string
   isBodyweight?: boolean
   isCardio?: boolean  // 有酸素運動フラグ
+  bodyPart?: ExerciseBodyPart
+  category?: ExerciseCategory
   createdAt: number
 }
 

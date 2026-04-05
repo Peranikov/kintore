@@ -3,15 +3,44 @@ import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
+import { EXERCISE_BODY_PARTS, EXERCISE_CATEGORIES } from '../utils/exerciseMetadata'
+import type { ExerciseBodyPart, ExerciseCategory } from '../types'
+
+function getNextMetadata(
+  isBodyweight: boolean,
+  isCardio: boolean,
+  currentBodyPart: ExerciseBodyPart | '',
+  currentCategory: ExerciseCategory | ''
+) {
+  if (isCardio) {
+    return { bodyPart: '有酸素' as const, category: '有酸素' as const }
+  }
+
+  if (isBodyweight) {
+    return {
+      bodyPart: currentBodyPart,
+      category: currentCategory === '有酸素' || !currentCategory ? '自重' as const : currentCategory,
+    }
+  }
+
+  return {
+    bodyPart: currentBodyPart === '有酸素' ? '' : currentBodyPart,
+    category: currentCategory === '有酸素' || currentCategory === '自重' ? '' : currentCategory,
+  }
+}
 
 export function ExerciseMasterPage() {
   const [newName, setNewName] = useState('')
   const [newIsBodyweight, setNewIsBodyweight] = useState(false)
   const [newIsCardio, setNewIsCardio] = useState(false)
+  const [newBodyPart, setNewBodyPart] = useState<ExerciseBodyPart | ''>('')
+  const [newCategory, setNewCategory] = useState<ExerciseCategory | ''>('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
   const [editingIsBodyweight, setEditingIsBodyweight] = useState(false)
   const [editingIsCardio, setEditingIsCardio] = useState(false)
+  const [editingBodyPart, setEditingBodyPart] = useState<ExerciseBodyPart | ''>('')
+  const [editingCategory, setEditingCategory] = useState<ExerciseCategory | ''>('')
 
   const exercises = useLiveQuery(
     () => db.exerciseMasters.orderBy('name').toArray(),
@@ -32,11 +61,15 @@ export function ExerciseMasterPage() {
       name: newName.trim(),
       isBodyweight: newIsBodyweight,
       isCardio: newIsCardio,
+      bodyPart: newBodyPart || undefined,
+      category: newCategory || undefined,
       createdAt: Date.now(),
     })
     setNewName('')
     setNewIsBodyweight(false)
     setNewIsCardio(false)
+    setNewBodyPart('')
+    setNewCategory('')
   }
 
   async function handleUpdate(id: number) {
@@ -52,11 +85,15 @@ export function ExerciseMasterPage() {
       name: editingName.trim(),
       isBodyweight: editingIsBodyweight,
       isCardio: editingIsCardio,
+      bodyPart: editingBodyPart || undefined,
+      category: editingCategory || undefined,
     })
     setEditingId(null)
     setEditingName('')
     setEditingIsBodyweight(false)
     setEditingIsCardio(false)
+    setEditingBodyPart('')
+    setEditingCategory('')
   }
 
   async function handleDelete(id: number) {
@@ -94,8 +131,13 @@ export function ExerciseMasterPage() {
                 type="checkbox"
                 checked={newIsBodyweight}
                 onChange={(e) => {
-                  setNewIsBodyweight(e.target.checked)
-                  if (e.target.checked) setNewIsCardio(false)
+                  const nextIsBodyweight = e.target.checked
+                  const nextIsCardio = nextIsBodyweight ? false : newIsCardio
+                  const nextMetadata = getNextMetadata(nextIsBodyweight, nextIsCardio, newBodyPart, newCategory)
+                  setNewIsBodyweight(nextIsBodyweight)
+                  setNewIsCardio(nextIsCardio)
+                  setNewBodyPart(nextMetadata.bodyPart)
+                  setNewCategory(nextMetadata.category)
                 }}
                 className="rounded"
               />
@@ -106,14 +148,51 @@ export function ExerciseMasterPage() {
                 type="checkbox"
                 checked={newIsCardio}
                 onChange={(e) => {
-                  setNewIsCardio(e.target.checked)
-                  if (e.target.checked) {
-                    setNewIsBodyweight(false)
-                  }
+                  const nextIsCardio = e.target.checked
+                  const nextIsBodyweight = nextIsCardio ? false : newIsBodyweight
+                  const nextMetadata = getNextMetadata(nextIsBodyweight, nextIsCardio, newBodyPart, newCategory)
+                  setNewIsCardio(nextIsCardio)
+                  setNewIsBodyweight(nextIsBodyweight)
+                  setNewBodyPart(nextMetadata.bodyPart)
+                  setNewCategory(nextMetadata.category)
                 }}
                 className="rounded"
               />
               有酸素運動
+            </label>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm text-gray-600">対象部位</span>
+              <select
+                value={newBodyPart}
+                onChange={(e) => setNewBodyPart(e.target.value as ExerciseBodyPart | '')}
+                disabled={newIsCardio}
+                className="w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">未設定</option>
+                {EXERCISE_BODY_PARTS.map((bodyPart) => (
+                  <option key={bodyPart} value={bodyPart}>
+                    {bodyPart}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm text-gray-600">カテゴリ</span>
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as ExerciseCategory | '')}
+                disabled={newIsCardio}
+                className="w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">未設定</option>
+                {EXERCISE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
         </form>
@@ -125,7 +204,7 @@ export function ExerciseMasterPage() {
               {exercises.map((ex) => (
                 <li key={ex.id} className="p-4">
                   {editingId === ex.id ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -146,6 +225,8 @@ export function ExerciseMasterPage() {
                             setEditingName('')
                             setEditingIsBodyweight(false)
                             setEditingIsCardio(false)
+                            setEditingBodyPart('')
+                            setEditingCategory('')
                           }}
                           className="text-gray-600 text-sm hover:underline"
                         >
@@ -158,8 +239,13 @@ export function ExerciseMasterPage() {
                             type="checkbox"
                             checked={editingIsBodyweight}
                             onChange={(e) => {
-                              setEditingIsBodyweight(e.target.checked)
-                              if (e.target.checked) setEditingIsCardio(false)
+                              const nextIsBodyweight = e.target.checked
+                              const nextIsCardio = nextIsBodyweight ? false : editingIsCardio
+                              const nextMetadata = getNextMetadata(nextIsBodyweight, nextIsCardio, editingBodyPart, editingCategory)
+                              setEditingIsBodyweight(nextIsBodyweight)
+                              setEditingIsCardio(nextIsCardio)
+                              setEditingBodyPart(nextMetadata.bodyPart)
+                              setEditingCategory(nextMetadata.category)
                             }}
                             className="rounded"
                           />
@@ -170,14 +256,51 @@ export function ExerciseMasterPage() {
                             type="checkbox"
                             checked={editingIsCardio}
                             onChange={(e) => {
-                              setEditingIsCardio(e.target.checked)
-                              if (e.target.checked) {
-                                setEditingIsBodyweight(false)
-                              }
+                              const nextIsCardio = e.target.checked
+                              const nextIsBodyweight = nextIsCardio ? false : editingIsBodyweight
+                              const nextMetadata = getNextMetadata(nextIsBodyweight, nextIsCardio, editingBodyPart, editingCategory)
+                              setEditingIsCardio(nextIsCardio)
+                              setEditingIsBodyweight(nextIsBodyweight)
+                              setEditingBodyPart(nextMetadata.bodyPart)
+                              setEditingCategory(nextMetadata.category)
                             }}
                             className="rounded"
                           />
                           有酸素運動
+                        </label>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-1 block text-sm text-gray-600">対象部位</span>
+                          <select
+                            value={editingBodyPart}
+                            onChange={(e) => setEditingBodyPart(e.target.value as ExerciseBodyPart | '')}
+                            disabled={editingIsCardio}
+                            className="w-full rounded border px-2 py-1 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                          >
+                            <option value="">未設定</option>
+                            {EXERCISE_BODY_PARTS.map((bodyPart) => (
+                              <option key={bodyPart} value={bodyPart}>
+                                {bodyPart}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-sm text-gray-600">カテゴリ</span>
+                          <select
+                            value={editingCategory}
+                            onChange={(e) => setEditingCategory(e.target.value as ExerciseCategory | '')}
+                            disabled={editingIsCardio}
+                            className="w-full rounded border px-2 py-1 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                          >
+                            <option value="">未設定</option>
+                            {EXERCISE_CATEGORIES.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                       </div>
                     </div>
@@ -192,6 +315,12 @@ export function ExerciseMasterPage() {
                           {ex.isCardio && (
                             <span className="text-xs bg-green-200 text-green-700 px-1.5 py-0.5 rounded">有酸素</span>
                           )}
+                          {ex.bodyPart && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{ex.bodyPart}</span>
+                          )}
+                          {ex.category && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">{ex.category}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex shrink-0">
@@ -201,6 +330,8 @@ export function ExerciseMasterPage() {
                             setEditingName(ex.name)
                             setEditingIsBodyweight(ex.isBodyweight || false)
                             setEditingIsCardio(ex.isCardio || false)
+                            setEditingBodyPart(ex.bodyPart || '')
+                            setEditingCategory(ex.category || '')
                           }}
                           className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-blue-600"
                           title="編集"

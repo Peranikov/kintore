@@ -217,6 +217,18 @@ describe('Database', () => {
       expect(retrieved?.isBodyweight).toBe(true)
     })
 
+    it('部位とカテゴリを保存できる', async () => {
+      const id = await db.exerciseMasters.add(createTestMaster({
+        name: 'ベンチプレス',
+        bodyPart: '胸',
+        category: 'コンパウンド',
+      }))
+
+      const retrieved = await db.exerciseMasters.get(id)
+      expect(retrieved?.bodyPart).toBe('胸')
+      expect(retrieved?.category).toBe('コンパウンド')
+    })
+
     it('一括追加できる', async () => {
       const masters = [
         createTestMaster({ name: '種目A' }),
