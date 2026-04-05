@@ -7,7 +7,7 @@ import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { calculateProgress } from '../utils/progressCalculations'
-import { generateDeloadSuggestion } from '../utils/periodization'
+import { dismissDeloadUntilNextLog, getActiveDeloadSuggestion, getDeloadDismissal } from '../services/deload'
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
@@ -45,11 +45,16 @@ export function HomePage() {
     []
   )
 
+  const deloadDismissal = useLiveQuery(
+    () => getDeloadDismissal(),
+    []
+  )
+
   // ディロード提案を計算
   const deloadSuggestion = useMemo((): DeloadSuggestion | null => {
     if (!allLogs || !exerciseMasters) return null
-    return generateDeloadSuggestion(allLogs, exerciseMasters)
-  }, [allLogs, exerciseMasters])
+    return getActiveDeloadSuggestion(allLogs, exerciseMasters, deloadDismissal)
+  }, [allLogs, exerciseMasters, deloadDismissal])
 
   // 今日の種目の前回記録を取得
   const previousRecords = useMemo(() => {
@@ -106,6 +111,10 @@ export function HomePage() {
     setIsAddingExercise(false)
   }
 
+  async function handleDismissDeload() {
+    await dismissDeloadUntilNextLog()
+  }
+
   function formatSets(sets: Set[], isBodyweight: boolean, isCardio: boolean): string {
     if (isCardio) {
       const s = sets[0]
@@ -131,10 +140,7 @@ export function HomePage() {
 
       <main className="p-4 max-w-lg mx-auto">
         {deloadSuggestion && (
-          <Link
-            to="/plan-create"
-            className="mb-4 block bg-amber-50 border border-amber-200 rounded-lg p-4 hover:bg-amber-100"
-          >
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -150,15 +156,27 @@ export function HomePage() {
                 <div className="text-sm text-amber-700 mt-1">
                   {deloadSuggestion.message}
                 </div>
-                <div className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-                  <span>AIプランでディロードメニューを作成</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    to="/plan-create"
+                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
+                  >
+                    <span>AIプランでディロードメニューを作成</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleDismissDeload}
+                    className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                  >
+                    今回は見送る
+                  </button>
                 </div>
               </div>
             </div>
-          </Link>
+          </div>
         )}
 
         <Link

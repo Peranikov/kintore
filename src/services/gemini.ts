@@ -1,7 +1,8 @@
 import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster, StagnationInfo, DeloadSuggestion } from '../types'
+import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
-import { generateDeloadSuggestion, formatDeloadForPrompt } from '../utils/periodization'
+import { formatDeloadForPrompt } from '../utils/periodization'
 
 export const GEMINI_MODELS = [
   { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite (Preview)', description: 'コスパ良・最新' },
@@ -471,12 +472,13 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   }
 
   // 停滞検出・ディロード検出用に多めのログを取得
-  const [profile, exerciseMasters, recentLogs, allRecentLogs, model] = await Promise.all([
+  const [profile, exerciseMasters, recentLogs, allRecentLogs, model, deloadDismissal] = await Promise.all([
     getUserProfile(),
     db.exerciseMasters.toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(7).toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),  // 停滞・ディロード検出用
     getGeminiModel(),
+    getDeloadDismissal(),
   ])
 
   if (exerciseMasters.length === 0) {
@@ -487,7 +489,7 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   const stagnationInfos = detectStagnation(allRecentLogs, exerciseMasters)
 
   // ディロード推奨を検出
-  const deloadSuggestion = generateDeloadSuggestion(allRecentLogs, exerciseMasters)
+  const deloadSuggestion = getActiveDeloadSuggestion(allRecentLogs, exerciseMasters, deloadDismissal)
 
   const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
 

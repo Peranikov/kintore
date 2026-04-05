@@ -84,3 +84,7 @@ export interface DeloadSuggestion {
   sessionCount: number
   performanceDecline?: PerformanceDecline[]
 }
+
+export interface DeloadDismissal {
+  dismissedAt: number
+}

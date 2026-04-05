@@ -261,6 +261,13 @@
 - 連続4週以上のトレーニング継続
 - パフォーマンス低下の検出（重量/回数の減少傾向）
 
+**ディロード提案の見送り:**
+- ホーム画面のディロード提案カードで「今回は見送る」を選択可能
+- 見送り中はホーム画面でディロード提案を表示しない
+- 見送り中はAIプラン生成時にもディロード指示をプロンプトへ含めない
+- 見送り状態は次回の新規トレーニングログ作成まで有効
+- 新しいトレーニングログが1件作成されたら、ディロード提案を再判定する
+
 ## データモデル
 
 ### WorkoutLog（トレーニングログ）
@@ -316,7 +323,7 @@ interface ExerciseMaster {
 ```typescript
 interface AppSettings {
   id?: number          // 自動採番
-  key: string          // 設定キー（geminiApiKey, userProfile）
+  key: string          // 設定キー（geminiApiKey, userProfile, deloadDismissal）
   value: string        // 設定値
 }
 ```
