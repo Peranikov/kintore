@@ -67,10 +67,25 @@ export interface GeneratedPlan {
   advice?: string
 }
 
+interface BodyPartPriority {
+  bodyPart: string
+  weeklySets: number
+  lastPerformed: string | null
+  daysSinceLastPerformed: number | null
+}
+
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr)
   date.setDate(date.getDate() + days)
   return date.toISOString().split('T')[0]
+}
+
+function diffDays(fromDate: string, toDate: string): number {
+  const from = new Date(fromDate)
+  const to = new Date(toDate)
+  from.setHours(0, 0, 0, 0)
+  to.setHours(0, 0, 0, 0)
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000))
 }
 
 const STRUCTURED_USER_PROFILE_KEY = 'structuredUserProfile'
@@ -349,6 +364,114 @@ export function formatStagnationSummary(stagnationInfos: StagnationInfo[]): stri
   return `停滞中の種目\n${lines.join('\n')}`
 }
 
+export function buildBodyPartPriorities(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+  referenceDate: string = new Date().toISOString().split('T')[0],
+): BodyPartPriority[] {
+  const skippedBodyParts = new Set(['有酸素', 'その他'])
+  const lastRelevantBodyParts = EXERCISE_BODY_PARTS.filter((bodyPart) => !skippedBodyParts.has(bodyPart))
+  const latestLogDate = logs.length > 0
+    ? logs.reduce((latest, log) => log.date > latest ? log.date : latest, logs[0].date)
+    : referenceDate
+  const windowStart = addDays(latestLogDate, -6)
+  const weeklySetCounts = new Map<string, number>()
+  const lastPerformedMap = new Map<string, string>()
+
+  logs.forEach((log) => {
+    log.exercises.forEach((exercise) => {
+      const master = exerciseMasters.find((item) => item.name === exercise.name)
+      const bodyPart = master?.bodyPart || 'その他'
+
+      if (skippedBodyParts.has(bodyPart)) {
+        return
+      }
+
+      if (log.date >= windowStart && log.date <= latestLogDate) {
+        weeklySetCounts.set(bodyPart, (weeklySetCounts.get(bodyPart) || 0) + exercise.sets.length)
+      }
+
+      const current = lastPerformedMap.get(bodyPart)
+      if (!current || log.date > current) {
+        lastPerformedMap.set(bodyPart, log.date)
+      }
+    })
+  })
+
+  return lastRelevantBodyParts
+    .map((bodyPart) => {
+      const lastPerformed = lastPerformedMap.get(bodyPart) || null
+      return {
+        bodyPart,
+        weeklySets: weeklySetCounts.get(bodyPart) || 0,
+        lastPerformed,
+        daysSinceLastPerformed: lastPerformed ? diffDays(lastPerformed, referenceDate) : null,
+      }
+    })
+    .sort((a, b) => {
+      if (a.weeklySets !== b.weeklySets) {
+        return a.weeklySets - b.weeklySets
+      }
+
+      const aDays = a.daysSinceLastPerformed ?? Number.MAX_SAFE_INTEGER
+      const bDays = b.daysSinceLastPerformed ?? Number.MAX_SAFE_INTEGER
+      if (aDays !== bDays) {
+        return bDays - aDays
+      }
+
+      return a.bodyPart.localeCompare(b.bodyPart)
+    })
+}
+
+export function formatBodyPartPrioritySummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+  referenceDate?: string,
+): string {
+  const priorities = buildBodyPartPriorities(logs, exerciseMasters, referenceDate).slice(0, 3)
+
+  if (priorities.length === 0) {
+    return '優先部位の候補はありません。'
+  }
+
+  const lines = priorities.map((priority, index) => {
+    const lastPerformedPart = priority.lastPerformed
+      ? `${priority.lastPerformed}（${priority.daysSinceLastPerformed}日前）`
+      : '記録なし'
+    return `${index + 1}. ${priority.bodyPart}: 直近1週間 ${priority.weeklySets}セット / 前回 ${lastPerformedPart}`
+  })
+
+  return `今日の優先候補部位\n${lines.join('\n')}`
+}
+
+export function formatRecommendedBodyPartSummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+  referenceDate?: string,
+): string {
+  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, referenceDate)[0]
+
+  if (!topPriority) {
+    return '今日の推奨部位はありません。'
+  }
+
+  const reasons: string[] = []
+
+  if (topPriority.weeklySets === 0) {
+    reasons.push('直近1週間のセット数が0')
+  } else {
+    reasons.push(`直近1週間のセット数が${topPriority.weeklySets}セットと少なめ`)
+  }
+
+  if (topPriority.lastPerformed) {
+    reasons.push(`前回実施が${topPriority.lastPerformed}（${topPriority.daysSinceLastPerformed}日前）`)
+  } else {
+    reasons.push('最近の実施記録がない')
+  }
+
+  return `今日の推奨部位\n- ${topPriority.bodyPart}\n- 理由: ${reasons.join(' / ')}`
+}
+
 export function formatAiPlanContextSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
@@ -357,6 +480,8 @@ export function formatAiPlanContextSummary(
   return [
     formatBodyPartWeeklySetSummary(logs, exerciseMasters),
     formatBodyPartLastPerformedSummary(logs, exerciseMasters),
+    formatRecommendedBodyPartSummary(logs, exerciseMasters),
+    formatBodyPartPrioritySummary(logs, exerciseMasters),
     formatStagnationSummary(stagnationInfos),
   ].join('\n\n')
 }
@@ -379,7 +504,9 @@ export function buildPrompt(
 3. 「前回のトレーニング評価」がある場合は、その改善点を考慮してプランを作成してください
 4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
 5. 「ディロード推奨」がある場合は、ボリュームを通常の50-60%に抑えたプランを提案してください
-6. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+6. 「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください
+7. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
+8. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [

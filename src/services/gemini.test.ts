@@ -5,6 +5,9 @@ import {
   formatStructuredUserProfile,
   formatBodyPartWeeklySetSummary,
   formatBodyPartLastPerformedSummary,
+  buildBodyPartPriorities,
+  formatRecommendedBodyPartSummary,
+  formatBodyPartPrioritySummary,
   formatStagnationSummary,
   buildPrompt,
   parseGeneratedPlan,
@@ -218,6 +221,27 @@ describe('AI plan summaries', () => {
     expect(result).toContain('ベンチプレス')
     expect(result).toContain('3週間停滞')
   })
+
+  it('部位優先度をセット数と休養日数で並べる', () => {
+    const result = buildBodyPartPriorities(logs, masters, '2024-01-16')
+    expect(result[0].weeklySets).toBe(0)
+    expect(result[1].weeklySets).toBe(0)
+    expect(result[2].weeklySets).toBe(0)
+    expect(result.findIndex((item) => item.bodyPart === '胸')).toBeGreaterThan(2)
+  })
+
+  it('優先候補部位をフォーマットする', () => {
+    const result = formatBodyPartPrioritySummary(logs, masters, '2024-01-16')
+    expect(result).toContain('今日の優先候補部位')
+    expect(result).toContain('1. ')
+    expect(result).toContain('0セット / 前回 記録なし')
+  })
+
+  it('今日の推奨部位をフォーマットする', () => {
+    const result = formatRecommendedBodyPartSummary(logs, masters, '2024-01-16')
+    expect(result).toContain('今日の推奨部位')
+    expect(result).toContain('- 理由:')
+  })
 })
 
 describe('parseGeneratedPlan', () => {
@@ -400,6 +424,16 @@ describe('buildPrompt', () => {
     expect(result).toContain('AI判断用サマリ')
     expect(result).toContain('胸: 2セット')
     expect(result).toContain('胸: 2024-01-15')
+    expect(result).toContain('今日の推奨部位')
+    expect(result).toContain('今日の優先候補部位')
+  })
+
+  it('優先候補部位をプラン中心にする指示が含まれる', () => {
+    const result = buildPrompt(null, baseExerciseMasters, [], '')
+
+    expect(result).toContain('「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください')
+    expect(result).toContain('上位1〜2部位を補助候補としてプランに反映してください')
+    expect(result).toContain('今日の状態・リクエスト')
   })
 
   it('ユーザーメモが含まれる', () => {
@@ -412,13 +446,13 @@ describe('buildPrompt', () => {
   it('空のメモの場合、セクションが含まれない', () => {
     const result = buildPrompt(null, baseExerciseMasters, [], '')
 
-    expect(result).not.toContain('今日の状態・リクエスト')
+    expect(result).not.toContain('■ 今日の状態・リクエスト')
   })
 
   it('空白のみのメモの場合、セクションが含まれない', () => {
     const result = buildPrompt(null, baseExerciseMasters, [], '   ')
 
-    expect(result).not.toContain('今日の状態・リクエスト')
+    expect(result).not.toContain('■ 今日の状態・リクエスト')
   })
 
   it('前回の評価が含まれる', () => {
