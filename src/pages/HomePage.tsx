@@ -5,6 +5,7 @@ import { db } from '../db'
 import type { WorkoutLog, Exercise, Set, DeloadSuggestion } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { calculateProgress } from '../utils/progressCalculations'
 import { dismissDeloadUntilNextLog, getActiveDeloadSuggestion, getDeloadDismissal } from '../services/deload'
@@ -130,7 +131,10 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4">
         <div className="flex items-end justify-between">
           <h1 className="text-xl font-bold">Kintore</h1>

@@ -1,12 +1,16 @@
 import { Link } from 'react-router-dom'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { seedSampleData, clearAllData } from '../utils/seedData'
 
 const isDev = import.meta.env.DEV
 
 export function SettingsPage() {
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-bold">設定</h1>
       </header>

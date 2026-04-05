@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { parseExportMarkdown, type ParseResult } from '../utils/importParser'
 import type { WorkoutLog } from '../types'
 
@@ -99,7 +100,10 @@ export function ImportPage() {
   ) ?? 0
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4 flex items-center">
         <Link to="/settings" className="text-white hover:opacity-80 mr-3">&larr;</Link>
         <h1 className="text-xl font-bold">インポート</h1>

@@ -6,6 +6,7 @@ import { db } from '../db'
 import type { WorkoutLog, Exercise } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 
 function getMonthDays(year: number, month: number): (number | null)[] {
   const firstDay = new Date(year, month, 1).getDay()
@@ -115,7 +116,10 @@ export function CalendarPage() {
   const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate())
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-bold">カレンダー</h1>
       </header>

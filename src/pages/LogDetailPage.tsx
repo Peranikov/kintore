@@ -6,6 +6,7 @@ import { db } from '../db'
 import type { WorkoutLog, Exercise, Set } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { generateWorkoutEvaluation, getApiKey } from '../services/gemini'
 import { calculateProgress } from '../utils/progressCalculations'
@@ -273,7 +274,10 @@ export function LogDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4 flex items-center justify-between">
         <Link to="/" className="text-white hover:opacity-80">&larr; 戻る</Link>
         <h1 className="text-xl font-bold">{log.date}</h1>

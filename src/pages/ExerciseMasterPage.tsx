@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { EXERCISE_BODY_PARTS, EXERCISE_CATEGORIES } from '../utils/exerciseMetadata'
 import type { ExerciseBodyPart, ExerciseCategory } from '../types'
 
@@ -102,7 +103,10 @@ export function ExerciseMasterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4 flex items-center">
         <Link to="/settings" className="text-white hover:opacity-80 mr-3">&larr;</Link>
         <h1 className="text-xl font-bold">種目マスタ</h1>

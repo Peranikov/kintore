@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster } from '../types'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 
 function formatDateString(date: Date): string {
   return date.toISOString().split('T')[0]
@@ -143,7 +144,10 @@ export function ExportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4 flex items-center">
         <Link to="/settings" className="text-white hover:opacity-80 mr-3">&larr;</Link>
         <h1 className="text-xl font-bold">エクスポート</h1>

@@ -4,6 +4,10 @@ interface BottomNavProps {
   current: 'home' | 'calendar' | 'graph' | 'settings'
 }
 
+const bottomNavStyle = {
+  paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+}
+
 function HomeIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -84,7 +88,10 @@ function SettingsIcon({ active }: { active: boolean }) {
 
 export function BottomNav({ current }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex">
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-white border-t flex"
+      style={bottomNavStyle}
+    >
       <Link
         to="/"
         className="flex-1 py-3 flex justify-center items-center"

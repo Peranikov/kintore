@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { db } from '../db'
 import { BottomNav } from '../components/BottomNav'
+import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { generateProgressEvaluation, getApiKey } from '../services/gemini'
 import { buildExerciseChartData } from '../utils/graphCalculations'
 
@@ -60,7 +61,10 @@ export function GraphPage() {
   }, [logs, threeMonthsAgo, exerciseMasters])
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div
+      className="min-h-screen bg-gray-100"
+      style={bottomNavPagePaddingStyle}
+    >
       <header className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-bold">グラフ</h1>
       </header>
