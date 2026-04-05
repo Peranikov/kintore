@@ -6,6 +6,7 @@ import type {
   DeloadSuggestion,
   StructuredUserProfile,
   ExerciseBodyPart,
+  Set as WorkoutSet,
 } from '../types'
 import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
@@ -40,8 +41,10 @@ const PLAN_RESPONSE_SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                weight: { type: 'number', description: '重量（kg）。自重の場合は0' },
-                reps: { type: 'number', description: '回数' },
+                weight: { type: 'number', description: '重量（kg）。自重・有酸素の場合は0' },
+                reps: { type: 'number', description: '回数。有酸素の場合は0' },
+                duration: { type: 'number', description: '有酸素運動の時間（分）' },
+                distance: { type: 'number', description: '有酸素運動の距離（km）。任意' },
               },
               required: ['weight', 'reps'],
             },
@@ -57,10 +60,7 @@ const PLAN_RESPONSE_SCHEMA = {
 
 export interface GeneratedExercise {
   name: string
-  sets: {
-    weight: number
-    reps: number
-  }[]
+  sets: WorkoutSet[]
 }
 
 export interface GeneratedPlan {
@@ -695,6 +695,7 @@ export function buildPrompt(
   exerciseMasters: ExerciseMaster[],
   recentLogs: WorkoutLog[],
   userMemo: string,
+  conversationContext: string = '',
   stagnationInfos: StagnationInfo[] = [],
   deloadSuggestion: DeloadSuggestion | null = null,
 ): string {
@@ -712,13 +713,14 @@ export function buildPrompt(
 8. 同じ種目が連続採用中の場合は固定化を避け、補助種目では別カテゴリの候補を1つ混ぜてください
 9. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
 10. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+11. 有酸素運動を提案する場合は、setsは1件にし、weightとrepsを0、durationに分数、distanceに距離km（任意）を入れてください
 
 {
   "exercises": [
     {
       "name": "種目名",
       "sets": [
-        { "weight": 重量kg（自重の場合は0）, "reps": 回数 }
+        { "weight": 重量kg（自重・有酸素は0）, "reps": 回数（有酸素は0）, "duration": 有酸素の時間（分、任意）, "distance": 有酸素の距離（km、任意） }
       ]
     }
   ],
@@ -732,6 +734,10 @@ export function buildPrompt(
   const exercisesSection = `\n\n■ 利用可能な器具\n${formatExerciseMasters(exerciseMasters)}`
 
   const historySection = `\n\n■ 最近のトレーニング履歴（直近7回分）\n${formatWorkoutLogs(recentLogs)}`
+
+  const conversationSection = conversationContext.trim()
+    ? `\n\n■ これまでの会話コンテキスト\n${conversationContext}`
+    : ''
 
   const trainingSummarySection = recentLogs.length > 0 || stagnationInfos.length > 0
     ? `\n\n■ AI判断用サマリ\n${formatAiPlanContextSummary(recentLogs, exerciseMasters, stagnationInfos, structuredProfile)}`
@@ -757,7 +763,7 @@ export function buildPrompt(
     ? `\n\n■ 今日の状態・リクエスト\n${userMemo}`
     : ''
 
-  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${trainingSummarySection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
+  return `${systemPrompt}${profileSection}${exercisesSection}${historySection}${trainingSummarySection}${conversationSection}${evaluationSection}${stagnationSection}${deloadSection}${memoSection}`
 }
 
 // JSONを抽出してパース
@@ -786,11 +792,13 @@ export function parseGeneratedPlan(text: string): GeneratedPlan {
     }
 
     return {
-      exercises: parsed.exercises.map((ex: { name?: string; sets?: { weight?: number; reps?: number }[] }) => ({
+      exercises: parsed.exercises.map((ex: { name?: string; sets?: { weight?: number; reps?: number; duration?: number; distance?: number }[] }) => ({
         name: String(ex.name || ''),
-        sets: (ex.sets || []).map((s: { weight?: number; reps?: number }) => ({
+        sets: (ex.sets || []).map((s: { weight?: number; reps?: number; duration?: number; distance?: number }) => ({
           weight: Number(s.weight) || 0,
           reps: Number(s.reps) || 0,
+          duration: s.duration == null ? undefined : Number(s.duration) || 0,
+          distance: s.distance == null ? undefined : Number(s.distance) || 0,
         })),
       })),
       advice: parsed.advice || undefined,
@@ -1025,7 +1033,7 @@ ${formatWorkoutLogs(recentLogs.slice(0, 5))}
 }
 
 // プランを生成
-export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
+export async function generatePlan(userMemo: string, conversationContext: string = ''): Promise<GeneratedPlan> {
   const apiKey = await getApiKey()
   if (!apiKey) {
     throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。')
@@ -1052,7 +1060,7 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   // ディロード推奨を検出
   const deloadSuggestion = getActiveDeloadSuggestion(allRecentLogs, exerciseMasters, deloadDismissal)
 
-  const prompt = buildPrompt(profile, structuredProfile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
+  const prompt = buildPrompt(profile, structuredProfile, exerciseMasters, recentLogs, userMemo, conversationContext, stagnationInfos, deloadSuggestion)
 
   const response = await fetch(`${getApiUrl(model)}?key=${apiKey}`, {
     method: 'POST',

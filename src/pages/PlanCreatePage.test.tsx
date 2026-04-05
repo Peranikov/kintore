@@ -35,7 +35,14 @@ describe('PlanCreatePage', () => {
 
     let callIndex = 0
     vi.mocked(useLiveQuery).mockImplementation(() => {
-      const values = [undefined, [], true] as const
+      const values = [
+        undefined,
+        [
+          { id: 1, name: 'ベンチプレス', createdAt: Date.now() },
+          { id: 2, name: 'ランニング', isCardio: true, createdAt: Date.now() },
+        ],
+        true,
+      ] as const
       const value = values[callIndex % values.length]
       callIndex += 1
       return value
@@ -94,7 +101,29 @@ describe('PlanCreatePage', () => {
     fireEvent.click(sendButton as HTMLButtonElement)
 
     await waitFor(() => {
-      expect(mockGeneratePlan).toHaveBeenNthCalledWith(2, '負荷を少し下げて')
+      expect(mockGeneratePlan).toHaveBeenNthCalledWith(
+        2,
+        '負荷を少し下げて',
+        expect.stringContaining('AIプラン:\n- ベンチプレス: 60kg×10回')
+      )
     })
+  })
+
+  it('有酸素プランを時間と距離で表示する', async () => {
+    mockGeneratePlan.mockResolvedValueOnce({
+      exercises: [
+        {
+          name: 'ランニング',
+          sets: [{ weight: 0, reps: 0, duration: 20, distance: 3.5 }],
+        },
+      ],
+      advice: '軽めの有酸素です。',
+    })
+
+    renderPage()
+
+    await screen.findByText('軽めの有酸素です。')
+    expect(screen.getByText('ランニング')).toBeInTheDocument()
+    expect(screen.getByText('20分 / 3.5km')).toBeInTheDocument()
   })
 })

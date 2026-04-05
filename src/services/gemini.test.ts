@@ -409,6 +409,21 @@ describe('parseGeneratedPlan', () => {
     expect(result.exercises[0].sets[0].weight).toBe(60)
     expect(result.exercises[0].sets[0].reps).toBe(10)
   })
+
+  it('有酸素種目のdurationとdistanceをパースする', () => {
+    const text = `{
+      "exercises": [
+        { "name": "ランニング", "sets": [{ "weight": 0, "reps": 0, "duration": "20", "distance": "3.5" }] }
+      ]
+    }`
+
+    const result = parseGeneratedPlan(text)
+    expect(result.exercises[0].name).toBe('ランニング')
+    expect(result.exercises[0].sets[0].weight).toBe(0)
+    expect(result.exercises[0].sets[0].reps).toBe(0)
+    expect(result.exercises[0].sets[0].duration).toBe(20)
+    expect(result.exercises[0].sets[0].distance).toBe(3.5)
+  })
 })
 
 describe('buildPrompt', () => {
@@ -505,6 +520,14 @@ describe('buildPrompt', () => {
     expect(result).toContain('今日は胸を中心にやりたい')
   })
 
+  it('会話コンテキストが含まれる', () => {
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '負荷を少し下げて', 'ユーザー: 胸中心\n\nAI: ベンチプレスを提案')
+
+    expect(result).toContain('これまでの会話コンテキスト')
+    expect(result).toContain('ユーザー: 胸中心')
+    expect(result).toContain('AI: ベンチプレスを提案')
+  })
+
   it('空のメモの場合、セクションが含まれない', () => {
     const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
@@ -565,5 +588,7 @@ describe('buildPrompt', () => {
     expect(result).toContain('"sets"')
     expect(result).toContain('"weight"')
     expect(result).toContain('"reps"')
+    expect(result).toContain('"duration"')
+    expect(result).toContain('"distance"')
   })
 })

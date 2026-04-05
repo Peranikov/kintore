@@ -24,6 +24,55 @@ function getTodayDate(): string {
   return new Date().toISOString().split('T')[0]
 }
 
+function formatPlanSets(sets: Set[], isBodyweight: boolean, isCardio: boolean): string {
+  if (isCardio) {
+    const set = sets[0]
+    if (!set) return ''
+
+    const parts = []
+    if (set.duration != null) parts.push(`${set.duration}分`)
+    if (set.distance != null && set.distance > 0) parts.push(`${set.distance}km`)
+    return parts.join(' / ')
+  }
+
+  return sets.map((set) => {
+    if (isBodyweight || set.weight === 0) {
+      return `${set.reps}回`
+    }
+    return `${set.weight}kg×${set.reps}回`
+  }).join(', ')
+}
+
+function formatConversationContext(messages: ChatMessage[]): string {
+  return messages
+    .map((message) => {
+      if (message.role === 'user') {
+        return `ユーザー: ${message.content}`
+      }
+
+      const lines = [`AI: ${message.content}`]
+      if (message.plan) {
+        lines.push('AIプラン:')
+        lines.push(...message.plan.exercises.map((exercise) => {
+          const sets = exercise.sets.map((set) => {
+            if (set.duration != null) {
+              const parts = [`${set.duration}分`]
+              if (set.distance != null && set.distance > 0) parts.push(`${set.distance}km`)
+              return parts.join(' / ')
+            }
+            if (set.weight === 0) {
+              return `${set.reps}回`
+            }
+            return `${set.weight}kg×${set.reps}回`
+          }).join(', ')
+          return `- ${exercise.name}: ${sets}`
+        }))
+      }
+      return lines.join('\n')
+    })
+    .join('\n\n')
+}
+
 export function PlanCreatePage() {
   const navigate = useNavigate()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -149,7 +198,12 @@ export function PlanCreatePage() {
         ? `${previousContext}\n\n【追加の指示】\n${trimmedInput}`
         : trimmedInput
 
-      const generatedPlan = await generatePlan(fullMemo)
+      const conversationContext = formatConversationContext([
+        ...messages,
+        userMessage,
+      ])
+
+      const generatedPlan = await generatePlan(fullMemo, conversationContext)
       setCurrentPlan(generatedPlan)
 
       // 前回記録を取得
@@ -190,6 +244,8 @@ export function PlanCreatePage() {
       sets: ex.sets.map(s => ({
         weight: s.weight,
         reps: s.reps,
+        duration: s.duration,
+        distance: s.distance,
       })),
     }))
 
@@ -228,21 +284,7 @@ export function PlanCreatePage() {
 
   // セットを表示用にフォーマット
   const formatSets = useCallback((sets: Set[], isBw: boolean, isCd: boolean): string => {
-    if (isCd) {
-      const s = sets[0]
-      if (!s) return ''
-      if (s.distance) {
-        return `${s.duration}分 / ${s.distance}km`
-      }
-      return `${s.duration}分`
-    }
-
-    return sets.map((s) => {
-      if (isBw || s.weight === 0) {
-        return `${s.reps}回`
-      }
-      return `${s.weight}kg×${s.reps}回`
-    }).join(', ')
+    return formatPlanSets(sets, isBw, isCd)
   }, [])
 
   // APIキーが未設定の場合
@@ -348,7 +390,7 @@ export function PlanCreatePage() {
                               {ex.sets.map((s, i) => (
                                 <span key={i}>
                                   {i > 0 && ', '}
-                                  {isBw || s.weight === 0 ? `${s.reps}回` : `${s.weight}kg×${s.reps}回`}
+                                  {formatPlanSets([s], isBw, isCd)}
                                 </span>
                               ))}
                             </div>
