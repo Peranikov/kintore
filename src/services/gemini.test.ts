@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   formatWorkoutLogs,
   formatExerciseMasters,
+  formatStructuredUserProfile,
   buildPrompt,
   parseGeneratedPlan,
+  EMPTY_STRUCTURED_USER_PROFILE,
 } from './gemini'
 import type { WorkoutLog, ExerciseMaster } from '../types'
 
@@ -117,6 +119,34 @@ describe('formatExerciseMasters', () => {
     const result = formatExerciseMasters(masters)
     expect(result).toContain('- ベンチプレス')
     expect(result).toContain('- チンニング（自重）')
+  })
+})
+
+describe('formatStructuredUserProfile', () => {
+  it('構造化プロフィールをラベル付きテキストに変換する', () => {
+    const result = formatStructuredUserProfile({
+      primaryGoal: '筋肥大',
+      trainingExperience: '1〜3年',
+      weeklyFrequency: '週3回',
+      sessionDurationMinutes: '60',
+      focusAreas: '胸、背中',
+      limitations: '肩前部に違和感あり',
+      bodyMetrics: '175cm / 70kg / 18%',
+      additionalNotes: '平日は60分以内にしたい',
+    })
+
+    expect(result).toContain('主な目標: 筋肥大')
+    expect(result).toContain('トレーニング歴: 1〜3年')
+    expect(result).toContain('週あたりのトレーニング回数: 週3回')
+    expect(result).toContain('1回あたりの目安時間: 60分')
+    expect(result).toContain('強化したい部位: 胸、背中')
+    expect(result).toContain('痛み・避けたい動き・配慮事項: 肩前部に違和感あり')
+    expect(result).toContain('体格・体組成メモ: 175cm / 70kg / 18%')
+    expect(result).toContain('補足メモ: 平日は60分以内にしたい')
+  })
+
+  it('空欄のみならnullを返す', () => {
+    expect(formatStructuredUserProfile(EMPTY_STRUCTURED_USER_PROFILE)).toBeNull()
   })
 })
 

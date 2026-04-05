@@ -36,6 +36,17 @@ export interface AppSettings {
   value: string
 }
 
+export interface StructuredUserProfile {
+  primaryGoal: string
+  trainingExperience: string
+  weeklyFrequency: string
+  sessionDurationMinutes: string
+  focusAreas: string
+  limitations: string
+  bodyMetrics: string
+  additionalNotes: string
+}
+
 // 進捗状態
 export type ProgressStatus = 'up' | 'same' | 'down'
 

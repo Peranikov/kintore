@@ -1,5 +1,11 @@
 import { db } from '../db'
-import type { WorkoutLog, ExerciseMaster, StagnationInfo, DeloadSuggestion } from '../types'
+import type {
+  WorkoutLog,
+  ExerciseMaster,
+  StagnationInfo,
+  DeloadSuggestion,
+  StructuredUserProfile,
+} from '../types'
 import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { formatDeloadForPrompt } from '../utils/periodization'
@@ -60,6 +66,64 @@ export interface GeneratedPlan {
   advice?: string
 }
 
+const STRUCTURED_USER_PROFILE_KEY = 'structuredUserProfile'
+const LEGACY_USER_PROFILE_KEY = 'userProfile'
+
+export const EMPTY_STRUCTURED_USER_PROFILE: StructuredUserProfile = {
+  primaryGoal: '',
+  trainingExperience: '',
+  weeklyFrequency: '',
+  sessionDurationMinutes: '',
+  focusAreas: '',
+  limitations: '',
+  bodyMetrics: '',
+  additionalNotes: '',
+}
+
+function normalizeStructuredUserProfile(profile: Partial<StructuredUserProfile> | null | undefined): StructuredUserProfile {
+  return {
+    primaryGoal: profile?.primaryGoal?.trim() || '',
+    trainingExperience: profile?.trainingExperience?.trim() || '',
+    weeklyFrequency: profile?.weeklyFrequency?.trim() || '',
+    sessionDurationMinutes: profile?.sessionDurationMinutes?.trim() || '',
+    focusAreas: profile?.focusAreas?.trim() || '',
+    limitations: profile?.limitations?.trim() || '',
+    bodyMetrics: profile?.bodyMetrics?.trim() || '',
+    additionalNotes: profile?.additionalNotes?.trim() || '',
+  }
+}
+
+function hasStructuredUserProfileContent(profile: StructuredUserProfile): boolean {
+  return Object.values(profile).some(value => value.length > 0)
+}
+
+export function formatStructuredUserProfile(profile: Partial<StructuredUserProfile> | null | undefined): string | null {
+  const normalized = normalizeStructuredUserProfile(profile)
+  const lines = [
+    normalized.primaryGoal && `- 主な目標: ${normalized.primaryGoal}`,
+    normalized.trainingExperience && `- トレーニング歴: ${normalized.trainingExperience}`,
+    normalized.weeklyFrequency && `- 週あたりのトレーニング回数: ${normalized.weeklyFrequency}`,
+    normalized.sessionDurationMinutes && `- 1回あたりの目安時間: ${normalized.sessionDurationMinutes}分`,
+    normalized.focusAreas && `- 強化したい部位: ${normalized.focusAreas}`,
+    normalized.limitations && `- 痛み・避けたい動き・配慮事項: ${normalized.limitations}`,
+    normalized.bodyMetrics && `- 体格・体組成メモ: ${normalized.bodyMetrics}`,
+    normalized.additionalNotes && `- 補足メモ: ${normalized.additionalNotes}`,
+  ].filter(Boolean)
+
+  return lines.length > 0 ? lines.join('\n') : null
+}
+
+function parseStructuredUserProfile(raw: string | null | undefined): StructuredUserProfile | null {
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    return normalizeStructuredUserProfile(parsed)
+  } catch {
+    return null
+  }
+}
+
 // 設定値を取得
 export async function getApiKey(): Promise<string | null> {
   const setting = await db.appSettings.where('key').equals('geminiApiKey').first()
@@ -72,8 +136,39 @@ export async function getGeminiModel(): Promise<string> {
 }
 
 export async function getUserProfile(): Promise<string | null> {
-  const setting = await db.appSettings.where('key').equals('userProfile').first()
-  return setting?.value || null
+  const [structuredSetting, legacySetting] = await Promise.all([
+    db.appSettings.where('key').equals(STRUCTURED_USER_PROFILE_KEY).first(),
+    db.appSettings.where('key').equals(LEGACY_USER_PROFILE_KEY).first(),
+  ])
+
+  const structuredProfile = parseStructuredUserProfile(structuredSetting?.value)
+  const formattedStructuredProfile = formatStructuredUserProfile(structuredProfile)
+  if (formattedStructuredProfile) {
+    return formattedStructuredProfile
+  }
+
+  return legacySetting?.value || null
+}
+
+export async function getStructuredUserProfile(): Promise<StructuredUserProfile> {
+  const [structuredSetting, legacySetting] = await Promise.all([
+    db.appSettings.where('key').equals(STRUCTURED_USER_PROFILE_KEY).first(),
+    db.appSettings.where('key').equals(LEGACY_USER_PROFILE_KEY).first(),
+  ])
+
+  const structuredProfile = parseStructuredUserProfile(structuredSetting?.value)
+  if (structuredProfile) {
+    return structuredProfile
+  }
+
+  if (legacySetting?.value) {
+    return {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      additionalNotes: legacySetting.value,
+    }
+  }
+
+  return { ...EMPTY_STRUCTURED_USER_PROFILE }
 }
 
 // 設定値を保存
@@ -96,11 +191,34 @@ export async function saveGeminiModel(model: string): Promise<void> {
 }
 
 export async function saveUserProfile(profile: string): Promise<void> {
-  const existing = await db.appSettings.where('key').equals('userProfile').first()
+  const existing = await db.appSettings.where('key').equals(LEGACY_USER_PROFILE_KEY).first()
   if (existing) {
     await db.appSettings.update(existing.id!, { value: profile })
   } else {
-    await db.appSettings.add({ key: 'userProfile', value: profile })
+    await db.appSettings.add({ key: LEGACY_USER_PROFILE_KEY, value: profile })
+  }
+}
+
+export async function saveStructuredUserProfile(profile: StructuredUserProfile): Promise<void> {
+  const normalizedProfile = normalizeStructuredUserProfile(profile)
+  const [structuredExisting, legacyExisting] = await Promise.all([
+    db.appSettings.where('key').equals(STRUCTURED_USER_PROFILE_KEY).first(),
+    db.appSettings.where('key').equals(LEGACY_USER_PROFILE_KEY).first(),
+  ])
+
+  const structuredValue = JSON.stringify(normalizedProfile)
+  const legacyValue = formatStructuredUserProfile(normalizedProfile) || ''
+
+  if (structuredExisting) {
+    await db.appSettings.update(structuredExisting.id!, { value: structuredValue })
+  } else {
+    await db.appSettings.add({ key: STRUCTURED_USER_PROFILE_KEY, value: structuredValue })
+  }
+
+  if (legacyExisting) {
+    await db.appSettings.update(legacyExisting.id!, { value: legacyValue })
+  } else if (hasStructuredUserProfileContent(normalizedProfile)) {
+    await db.appSettings.add({ key: LEGACY_USER_PROFILE_KEY, value: legacyValue })
   }
 }
 

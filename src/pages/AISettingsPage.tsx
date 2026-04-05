@@ -1,13 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { getApiKey, getUserProfile, getGeminiModel, saveApiKey, saveUserProfile, saveGeminiModel, GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '../services/gemini'
+import type { StructuredUserProfile } from '../types'
+import {
+  getApiKey,
+  getStructuredUserProfile,
+  getGeminiModel,
+  saveApiKey,
+  saveStructuredUserProfile,
+  saveGeminiModel,
+  GEMINI_MODELS,
+  DEFAULT_GEMINI_MODEL,
+  EMPTY_STRUCTURED_USER_PROFILE,
+} from '../services/gemini'
+
+const PRIMARY_GOALS = ['筋肥大', '筋力向上', '減量しながら筋量維持', '体力向上', '健康維持']
+const EXPERIENCE_LEVELS = ['未経験', '半年未満', '半年〜1年', '1〜3年', '3年以上']
+const WEEKLY_FREQUENCIES = ['週1回', '週2回', '週3回', '週4回', '週5回以上']
+const SESSION_DURATIONS = ['30', '45', '60', '75', '90', '120']
+
+function createEmptyProfile(): StructuredUserProfile {
+  return { ...EMPTY_STRUCTURED_USER_PROFILE }
+}
 
 export function AISettingsPage() {
   const [apiKey, setApiKey] = useState('')
-  const [profile, setProfile] = useState('')
+  const [profile, setProfile] = useState<StructuredUserProfile>(createEmptyProfile)
   const [model, setModel] = useState(DEFAULT_GEMINI_MODEL)
   const [savedApiKey, setSavedApiKey] = useState('')
-  const [savedProfile, setSavedProfile] = useState('')
+  const [savedProfile, setSavedProfile] = useState<StructuredUserProfile>(createEmptyProfile)
   const [savedModel, setSavedModel] = useState(DEFAULT_GEMINI_MODEL)
   const [showApiKey, setShowApiKey] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -16,15 +36,13 @@ export function AISettingsPage() {
   // 初期値を読み込み
   useEffect(() => {
     const load = async () => {
-      const [key, prof, mdl] = await Promise.all([getApiKey(), getUserProfile(), getGeminiModel()])
+      const [key, prof, mdl] = await Promise.all([getApiKey(), getStructuredUserProfile(), getGeminiModel()])
       if (key) {
         setApiKey(key)
         setSavedApiKey(key)
       }
-      if (prof) {
-        setProfile(prof)
-        setSavedProfile(prof)
-      }
+      setProfile(prof)
+      setSavedProfile(prof)
       setModel(mdl)
       setSavedModel(mdl)
     }
@@ -39,11 +57,11 @@ export function AISettingsPage() {
     try {
       await Promise.all([
         saveApiKey(apiKey.trim()),
-        saveUserProfile(profile.trim()),
+        saveStructuredUserProfile(profile),
         saveGeminiModel(model),
       ])
       setSavedApiKey(apiKey.trim())
-      setSavedProfile(profile.trim())
+      setSavedProfile({ ...profile })
       setSavedModel(model)
       setMessage({ type: 'success', text: '設定を保存しました' })
     } catch (e) {
@@ -53,7 +71,14 @@ export function AISettingsPage() {
     }
   }, [apiKey, profile, model])
 
-  const hasChanges = apiKey !== savedApiKey || profile !== savedProfile || model !== savedModel
+  const hasChanges = apiKey !== savedApiKey || JSON.stringify(profile) !== JSON.stringify(savedProfile) || model !== savedModel
+
+  const updateProfile = useCallback((key: keyof StructuredUserProfile, value: string) => {
+    setProfile((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -133,22 +158,120 @@ export function AISettingsPage() {
         <section className="bg-white rounded-lg shadow p-4">
           <h2 className="font-bold text-gray-700 mb-3">プロフィール</h2>
           <p className="text-sm text-gray-500 mb-3">
-            目標、体組成、トレーニング歴などを自由に記述してください。AIがより適切なプランを提案できるようになります。
+            筋トレ効果を出しやすい提案にするため、目的と制約を構造化して保存します。未入力の項目は空欄のままで構いません。
           </p>
 
-          <textarea
-            value={profile}
-            onChange={(e) => setProfile(e.target.value)}
-            rows={6}
-            className="w-full border border-gray-300 rounded-lg p-3 text-sm"
-            placeholder={`例:
-目標: 筋肥大
-身長: 175cm、体重: 70kg
-体脂肪率: 18%
-トレーニング歴: 2年
-週3回ジムに通っている
-胸と背中を重点的に鍛えたい`}
-          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">主な目標</span>
+              <select
+                value={profile.primaryGoal}
+                onChange={(e) => updateProfile('primaryGoal', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+              >
+                <option value="">未選択</option>
+                {PRIMARY_GOALS.map((goal) => (
+                  <option key={goal} value={goal}>
+                    {goal}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">トレーニング歴</span>
+              <select
+                value={profile.trainingExperience}
+                onChange={(e) => updateProfile('trainingExperience', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+              >
+                <option value="">未選択</option>
+                {EXPERIENCE_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">週あたりの頻度</span>
+              <select
+                value={profile.weeklyFrequency}
+                onChange={(e) => updateProfile('weeklyFrequency', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+              >
+                <option value="">未選択</option>
+                {WEEKLY_FREQUENCIES.map((frequency) => (
+                  <option key={frequency} value={frequency}>
+                    {frequency}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">1回あたりの時間</span>
+              <select
+                value={profile.sessionDurationMinutes}
+                onChange={(e) => updateProfile('sessionDurationMinutes', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+              >
+                <option value="">未選択</option>
+                {SESSION_DURATIONS.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration}分
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">強化したい部位</span>
+              <input
+                value={profile.focusAreas}
+                onChange={(e) => updateProfile('focusAreas', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+                placeholder="例: 胸、背中、脚"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">痛み・避けたい動き・配慮事項</span>
+              <input
+                value={profile.limitations}
+                onChange={(e) => updateProfile('limitations', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+                placeholder="例: 肩前部に違和感あり。オーバーヘッドは控えたい"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">体格・体組成メモ</span>
+              <input
+                value={profile.bodyMetrics}
+                onChange={(e) => updateProfile('bodyMetrics', e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+                placeholder="例: 175cm / 70kg / 体脂肪率18%"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">補足メモ</span>
+              <textarea
+                value={profile.additionalNotes}
+                onChange={(e) => updateProfile('additionalNotes', e.target.value)}
+                rows={4}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-3 text-sm"
+                placeholder={`例:
+今は胸と背中を優先したい
+平日は60分以内で終えたい
+脚はフォーム重視で進めたい`}
+              />
+            </label>
+          </div>
         </section>
 
         {/* メッセージ */}
@@ -178,7 +301,7 @@ export function AISettingsPage() {
           <h2 className="font-bold text-blue-800 mb-2">AI設定について</h2>
           <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
             <li>APIキーはこの端末にのみ保存されます</li>
-            <li>プロフィールはAIへのプロンプトに含まれます</li>
+            <li>プロフィールは構造化してAIへのプロンプトに含まれます</li>
             <li>Gemini APIの無料枠は1日1,500リクエストです</li>
           </ul>
         </section>
