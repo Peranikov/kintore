@@ -6,6 +6,7 @@ import {
   isBodyweightExercise,
   isCardioExercise,
 } from './graphCalculations'
+import { formatLocalDate } from './date'
 
 // ディロード検出の閾値
 const ACCUMULATED_SESSIONS_THRESHOLD = 16  // 累積16セッション以上でディロード推奨
@@ -88,10 +89,10 @@ function calculateExercisePerformanceChange(
   const today = new Date()
   const twoWeeksAgo = new Date(today)
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - PERFORMANCE_CHECK_WEEKS * 7)
-  const twoWeeksAgoStr = twoWeeksAgo.toISOString().split('T')[0]
+  const twoWeeksAgoStr = formatLocalDate(twoWeeksAgo)
   const fourWeeksAgo = new Date(today)
   fourWeeksAgo.setDate(fourWeeksAgo.getDate() - (PERFORMANCE_CHECK_WEEKS * 2) * 7)
-  const fourWeeksAgoStr = fourWeeksAgo.toISOString().split('T')[0]
+  const fourWeeksAgoStr = formatLocalDate(fourWeeksAgo)
 
   // 直近2週間のパフォーマンス（今日からtwoWeeksAgoStrより新しいもの）
   const recentLogs = logsWithExercise.filter(log => log.date > twoWeeksAgoStr)

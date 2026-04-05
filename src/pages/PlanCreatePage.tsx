@@ -6,6 +6,7 @@ import { db } from '../db'
 import { generatePlan, getApiKey } from '../services/gemini'
 import type { GeneratedPlan } from '../services/gemini'
 import type { WorkoutLog, Exercise, Set } from '../types'
+import { todayLocalDate } from '../utils/date'
 
 interface ChatMessage {
   id: string
@@ -18,10 +19,6 @@ interface ChatMessage {
 interface LastRecord {
   date: string
   sets: Set[]
-}
-
-function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0]
 }
 
 function formatPlanSets(sets: Set[], isBodyweight: boolean, isCardio: boolean): string {
@@ -83,7 +80,7 @@ export function PlanCreatePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  const today = getTodayDate()
+  const today = todayLocalDate()
 
   const todayLog = useLiveQuery(
     () => db.workoutLogs.where('date').equals(today).first(),

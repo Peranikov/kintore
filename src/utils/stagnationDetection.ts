@@ -6,6 +6,7 @@ import {
   isBodyweightExercise,
   isCardioExercise,
 } from './graphCalculations'
+import { formatLocalDate } from './date'
 
 // 停滞判定の閾値
 const STAGNATION_THRESHOLD_PERCENT = 5  // ±5%以内を停滞とみなす
@@ -24,7 +25,7 @@ function getWeekStart(dateStr: string): string {
   const day = date.getDay()
   const diff = date.getDate() - day + (day === 0 ? -6 : 1) // 月曜日に調整
   const monday = new Date(date.setDate(diff))
-  return monday.toISOString().split('T')[0]
+  return formatLocalDate(monday)
 }
 
 /**

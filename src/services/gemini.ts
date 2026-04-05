@@ -12,6 +12,7 @@ import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
 import { formatDeloadForPrompt } from '../utils/periodization'
 import { EXERCISE_BODY_PARTS } from '../utils/exerciseMetadata'
+import { formatLocalDate, todayLocalDate } from '../utils/date'
 
 export const GEMINI_MODELS = [
   { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite (Preview)', description: 'コスパ良・最新' },
@@ -89,7 +90,7 @@ const BODY_PART_TARGET_KEYS: Record<string, keyof StructuredUserProfile> = {
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr)
   date.setDate(date.getDate() + days)
-  return date.toISOString().split('T')[0]
+  return formatLocalDate(date)
 }
 
 function diffDays(fromDate: string, toDate: string): number {
@@ -418,7 +419,7 @@ export function buildBodyPartPriorities(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
   structuredProfile?: StructuredUserProfile | null,
-  referenceDate: string = new Date().toISOString().split('T')[0],
+  referenceDate: string = todayLocalDate(),
 ): BodyPartPriority[] {
   const skippedBodyParts = new Set(['有酸素', 'その他'])
   const availableBodyParts = new Set(
@@ -652,7 +653,7 @@ export function formatRecommendedExerciseCandidates(
       exercise.category && `カテゴリ: ${exercise.category}`,
       exercise.isBodyweight && '自重',
       lastPerformed
-        ? `${lastPerformed}（${diffDays(lastPerformed, referenceDate || new Date().toISOString().split('T')[0])}日前）`
+        ? `${lastPerformed}（${diffDays(lastPerformed, referenceDate || todayLocalDate())}日前）`
         : '最近未実施',
       lastSetsByExercise.get(exercise.name) && `前回: ${lastSetsByExercise.get(exercise.name)}`,
       (consecutiveUseCountByExercise.get(exercise.name) || 0) >= 2

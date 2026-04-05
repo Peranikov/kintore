@@ -1,5 +1,6 @@
 import { db } from '../db'
 import type { WorkoutLog } from '../types'
+import { formatLocalDate } from './date'
 
 const sampleExercises = [
   'ベンチプレス',
@@ -23,7 +24,7 @@ function randomReps(min: number, max: number): number {
 function getDateString(daysAgo: number): string {
   const date = new Date()
   date.setDate(date.getDate() - daysAgo)
-  return date.toISOString().split('T')[0]
+  return formatLocalDate(date)
 }
 
 export async function seedSampleData(): Promise<void> {

@@ -5,9 +5,10 @@ import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
+import { formatLocalDate } from '../utils/date'
 
 function formatDateString(date: Date): string {
-  return date.toISOString().split('T')[0]
+  return formatLocalDate(date)
 }
 
 function getMonthStart(date: Date): string {

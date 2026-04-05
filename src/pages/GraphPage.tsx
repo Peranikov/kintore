@@ -17,6 +17,7 @@ import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { generateProgressEvaluation, getApiKey } from '../services/gemini'
 import { buildExerciseChartData } from '../utils/graphCalculations'
+import { formatLocalDate } from '../utils/date'
 
 export function GraphPage() {
   const logs = useLiveQuery(() => db.workoutLogs.toArray(), [])
@@ -52,7 +53,7 @@ export function GraphPage() {
   const threeMonthsAgo = useMemo(() => {
     const date = new Date()
     date.setMonth(date.getMonth() - 3)
-    return date.toISOString().split('T')[0]
+    return formatLocalDate(date)
   }, [])
 
   const exerciseCharts = useMemo(() => {

@@ -9,15 +9,12 @@ import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { calculateProgress } from '../utils/progressCalculations'
 import { dismissDeloadUntilNextLog, getActiveDeloadSuggestion, getDeloadDismissal } from '../services/deload'
-
-function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0]
-}
+import { todayLocalDate } from '../utils/date'
 
 export function HomePage() {
   const [isAddingExercise, setIsAddingExercise] = useState(false)
 
-  const today = getTodayDate()
+  const today = todayLocalDate()
 
   const todayLog = useLiveQuery(
     () => db.workoutLogs.where('date').equals(today).first(),
