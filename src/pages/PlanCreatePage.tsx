@@ -178,14 +178,6 @@ export function PlanCreatePage() {
     }
   }, [input, isLoading, messages, fetchLastRecords])
 
-  // Enterキーで送信
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }, [handleSend])
-
   // プランを採用
   const handleAdopt = useCallback(async () => {
     if (!currentPlan) return
@@ -416,10 +408,8 @@ export function PlanCreatePage() {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
             rows={1}
             className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-            placeholder="修正の指示を入力..."
             disabled={isLoading}
           />
           <button
