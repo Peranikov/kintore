@@ -3,14 +3,26 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import Markdown from 'react-markdown'
 import { db } from '../db'
-import type { WorkoutLog, Exercise, Set } from '../types'
+import type { WorkoutLog, Exercise, Set, WorkoutAnalysisSnapshot, ProgressMetric } from '../types'
 import { ExerciseForm } from '../components/ExerciseForm'
 import { BottomNav } from '../components/BottomNav'
 import { bottomNavPagePaddingStyle } from '../components/bottomNavStyles'
 import { ProgressIndicator } from '../components/ProgressIndicator'
 import { generateWorkoutEvaluation, getApiKey } from '../services/gemini'
-import { calculateProgress } from '../utils/progressCalculations'
+import { calculateProgress, getProgressColorClass, getProgressIcon } from '../utils/progressCalculations'
 import { useFeedback } from '../components/feedback'
+
+function AnalysisBadge({ metric }: { metric: ProgressMetric }) {
+  const colorClass = getProgressColorClass(metric.status)
+  const icon = getProgressIcon(metric.status)
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${colorClass}`}>
+      <span>{icon}</span>
+      <span>{metric.diffPercent}%</span>
+    </span>
+  )
+}
 
 export function LogDetailPage() {
   const { showToast, confirm } = useFeedback()
@@ -24,6 +36,7 @@ export function LogDetailPage() {
   const [evaluationGeneratedAt, setEvaluationGeneratedAt] = useState<number | null>(null)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
+  const [analysisSnapshot, setAnalysisSnapshot] = useState<WorkoutAnalysisSnapshot | null>(null)
   const [previousRecords, setPreviousRecords] = useState<Record<string, Set[]>>({})
 
   const log = useLiveQuery(
@@ -67,6 +80,7 @@ export function LogDetailPage() {
     if (!log) return
     setEvaluation(log.evaluation || null)
     setEvaluationGeneratedAt(log.evaluationGeneratedAt || null)
+    setAnalysisSnapshot(log.analysisSnapshot || null)
   }, [log?.id, log?.evaluation, log?.evaluationGeneratedAt, log])
 
   // 前回記録を取得
@@ -259,14 +273,16 @@ export function LogDetailPage() {
     try {
       const result = await generateWorkoutEvaluation(log)
       const now = Date.now()
-      setEvaluation(result)
+      setEvaluation(result.text)
       setEvaluationGeneratedAt(now)
+      setAnalysisSnapshot(result.analysis)
 
       // 評価をログに保存
       const updated: WorkoutLog = {
         ...log,
-        evaluation: result,
+        evaluation: result.text,
         evaluationGeneratedAt: now,
+        analysisSnapshot: result.analysis,
         updatedAt: now,
       }
       await db.workoutLogs.put(updated)
@@ -440,6 +456,74 @@ export function LogDetailPage() {
                     <p className="text-xs text-gray-400 mb-2">
                       {new Date(evaluationGeneratedAt).toLocaleString('ja-JP')} に生成
                     </p>
+                  )}
+                  {analysisSnapshot && (
+                    <div className="mb-4 space-y-4">
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2">分析サマリー</h3>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <div className="text-gray-500">種目数</div>
+                            <div className="font-medium">{analysisSnapshot.sessionSummary.exerciseCount}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500">総セット数</div>
+                            <div className="font-medium">{analysisSnapshot.sessionSummary.totalSets}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {Object.entries(analysisSnapshot.sessionSummary.bodyPartSetCounts).map(([bodyPart, sets]) => (
+                            <span key={bodyPart} className="rounded-full bg-white px-2 py-1 text-xs text-gray-700">
+                              {bodyPart}: {sets}セット
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2">種目別分析</h3>
+                        <div className="space-y-3">
+                          {analysisSnapshot.exerciseAnalyses.map((item) => {
+                            const primaryMetric = item.comparison?.estimated1RM
+                              || item.comparison?.maxReps
+                              || item.comparison?.totalDuration
+                              || item.comparison?.totalVolume
+                              || item.comparison?.totalDistance
+
+                            return (
+                              <div key={item.exerciseName} className="rounded-lg border border-gray-200 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <div className="font-medium text-gray-800">{item.exerciseName}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {item.previousDate ? `前回比較: ${item.previousDate}` : '比較対象なし'}
+                                    </div>
+                                  </div>
+                                  {primaryMetric && <AnalysisBadge metric={primaryMetric} />}
+                                </div>
+                                {item.comparison && (
+                                  <div className="mt-2">
+                                    <ProgressIndicator comparison={item.comparison} compact />
+                                  </div>
+                                )}
+                                <p className="mt-2 text-sm text-gray-700">{item.summary}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {analysisSnapshot.nextActions.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-800 mb-2">次回アクション</h3>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {analysisSnapshot.nextActions.map((action) => (
+                              <li key={action}>- {action}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   )}
                   <div className="prose prose-sm max-w-none text-gray-700">
                     <Markdown>{evaluation}</Markdown>

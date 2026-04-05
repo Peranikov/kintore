@@ -99,6 +99,13 @@ db.version(8).stores({
   }
 })
 
+// Version 9: WorkoutLogにanalysisSnapshotを追加
+db.version(9).stores({
+  workoutLogs: '++id, date, createdAt',
+  exerciseMasters: '++id, name, createdAt',
+  appSettings: '++id, &key',
+})
+
 const PRESET_EXERCISES = [
   // 筋トレマシン
   'チェストプレス',

@@ -18,8 +18,29 @@ export interface WorkoutLog {
   memo?: string
   evaluation?: string              // AI評価テキスト
   evaluationGeneratedAt?: number   // 評価生成日時
+  analysisSnapshot?: WorkoutAnalysisSnapshot
   createdAt: number
   updatedAt: number
+}
+
+export interface ExerciseAnalysis {
+  exerciseName: string
+  previousDate?: string
+  comparison?: ProgressComparison
+  summary: string
+}
+
+export interface SessionSummary {
+  exerciseCount: number
+  totalSets: number
+  bodyPartSetCounts: Partial<Record<ExerciseBodyPart, number>>
+}
+
+export interface WorkoutAnalysisSnapshot {
+  generatedAt: number
+  exerciseAnalyses: ExerciseAnalysis[]
+  sessionSummary: SessionSummary
+  nextActions: string[]
 }
 
 export type ExerciseBodyPart =
