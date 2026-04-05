@@ -195,6 +195,7 @@ describe('AI plan summaries', () => {
       id: 2,
       date: '2024-01-13',
       exercises: [
+        { id: 'ex3', name: 'ベンチプレス', sets: [{ weight: 57.5, reps: 10 }] },
         { id: 'ex2', name: 'ラットプルダウン', sets: [{ weight: 50, reps: 12 }] },
       ],
       createdAt: Date.now(),
@@ -205,7 +206,7 @@ describe('AI plan summaries', () => {
   it('部位ごとの週セット数をフォーマットする', () => {
     const result = formatBodyPartWeeklySetSummary(logs, masters)
     expect(result).toContain('直近1週間（2024-01-09〜2024-01-15）')
-    expect(result).toContain('胸: 2セット')
+    expect(result).toContain('胸: 3セット')
     expect(result).toContain('背中: 1セット')
   })
 
@@ -215,7 +216,7 @@ describe('AI plan summaries', () => {
       weeklySetTargetChest: '12',
       weeklySetTargetBack: '10',
     })
-    expect(result).toContain('胸: 2 / 12セット')
+    expect(result).toContain('胸: 3 / 12セット')
     expect(result).toContain('背中: 1 / 10セット')
   })
 
@@ -241,7 +242,7 @@ describe('AI plan summaries', () => {
       weeklySetTargetBack: '8',
     }, '2024-01-16')
     expect(result[0].bodyPart).toBe('胸')
-    expect(result[0].targetGap).toBe(10)
+    expect(result[0].targetGap).toBe(9)
     expect(result[1].bodyPart).toBe('背中')
     expect(result[1].targetGap).toBe(7)
   })
@@ -254,7 +255,7 @@ describe('AI plan summaries', () => {
     }, '2024-01-16')
     expect(result).toContain('今日の優先候補部位')
     expect(result).toContain('1. 胸')
-    expect(result).toContain('目標 12セット / 不足 10セット')
+    expect(result).toContain('目標 12セット / 不足 9セット')
   })
 
   it('今日の推奨部位をフォーマットする', () => {
@@ -265,7 +266,7 @@ describe('AI plan summaries', () => {
     }, '2024-01-16')
     expect(result).toContain('今日の推奨部位')
     expect(result).toContain('胸')
-    expect(result).toContain('目標 12セットに対して 10セット不足')
+    expect(result).toContain('目標 12セットに対して 9セット不足')
     expect(result).toContain('- 理由:')
   })
 
@@ -278,6 +279,23 @@ describe('AI plan summaries', () => {
     expect(result).toContain('推奨部位の種目候補')
     expect(result).toContain('ベンチプレス')
     expect(result).toContain('ダンベルフライ')
+    expect(result).toContain('前回: 60kg×10回, 60kg×10回')
+    expect(result).toContain('2回連続採用中')
+  })
+
+  it('停滞と最近未実施を考慮して種目候補を並べる', () => {
+    const result = formatRecommendedExerciseCandidates(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '8',
+    }, '2024-01-16', [
+      { exerciseName: 'ベンチプレス', metric: '推定1RM', value: 80, unit: 'kg', weeks: 3 },
+    ])
+    const benchIndex = result.indexOf('ベンチプレス')
+    const flyIndex = result.indexOf('ダンベルフライ')
+    expect(benchIndex).toBeLessThan(flyIndex)
+    expect(result).toContain('停滞中')
+    expect(result).toContain('刺激変化候補')
   })
 })
 
@@ -474,6 +492,8 @@ describe('buildPrompt', () => {
 
     expect(result).toContain('「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください')
     expect(result).toContain('「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください')
+    expect(result).toContain('最近やっていない種目や、停滞打破のために刺激を変えやすい候補を優先してください')
+    expect(result).toContain('同じ種目が連続採用中の場合は固定化を避け')
     expect(result).toContain('上位1〜2部位を補助候補としてプランに反映してください')
     expect(result).toContain('今日の状態・リクエスト')
   })

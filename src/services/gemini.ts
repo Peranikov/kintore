@@ -552,6 +552,7 @@ export function formatRecommendedExerciseCandidates(
   exerciseMasters: ExerciseMaster[],
   structuredProfile?: StructuredUserProfile | null,
   referenceDate?: string,
+  stagnationInfos: StagnationInfo[] = [],
 ): string {
   const topPriority = buildBodyPartPriorities(logs, exerciseMasters, structuredProfile, referenceDate)[0]
 
@@ -567,10 +568,100 @@ export function formatRecommendedExerciseCandidates(
     return '推奨部位に対応する種目候補はありません。'
   }
 
-  const lines = candidates.map((exercise) => {
+  const lastPerformedByExercise = new Map<string, string>()
+  const lastSetsByExercise = new Map<string, string>()
+  const consecutiveUseCountByExercise = new Map<string, number>()
+  logs.forEach((log) => {
+    log.exercises.forEach((exercise) => {
+      const current = lastPerformedByExercise.get(exercise.name)
+      if (!current || log.date > current) {
+        lastPerformedByExercise.set(exercise.name, log.date)
+        lastSetsByExercise.set(exercise.name, exercise.sets.map((set) => formatSet(set)).join(', '))
+      }
+    })
+  })
+
+  const uniqueLogsDesc = [...logs]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .filter((log, index, array) => index === 0 || log.date !== array[index - 1].date)
+
+  candidates.forEach((candidate) => {
+    let count = 0
+    for (const log of uniqueLogsDesc) {
+      const hasExercise = log.exercises.some((exercise) => exercise.name === candidate.name)
+      if (!hasExercise) {
+        break
+      }
+      count++
+    }
+    consecutiveUseCountByExercise.set(candidate.name, count)
+  })
+
+  const stagnatingExerciseNames = new Set(
+    stagnationInfos
+      .map((info) => info.exerciseName)
+      .filter((exerciseName) => {
+        const master = exerciseMasters.find((exercise) => exercise.name === exerciseName)
+        return master?.bodyPart === topPriority.bodyPart
+      })
+  )
+  const hasStagnationInBodyPart = stagnatingExerciseNames.size > 0
+  const latestPerformedCategory = (() => {
+    const latestEntry = candidates
+      .map((exercise) => ({
+        category: exercise.category || null,
+        lastPerformed: lastPerformedByExercise.get(exercise.name) || null,
+      }))
+      .filter((entry) => entry.lastPerformed)
+      .sort((a, b) => (b.lastPerformed || '').localeCompare(a.lastPerformed || ''))[0]
+
+    return latestEntry?.category || null
+  })()
+
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    const aLastPerformed = lastPerformedByExercise.get(a.name)
+    const bLastPerformed = lastPerformedByExercise.get(b.name)
+    const aStagnating = stagnatingExerciseNames.has(a.name) ? 1 : 0
+    const bStagnating = stagnatingExerciseNames.has(b.name) ? 1 : 0
+    if (aStagnating !== bStagnating) {
+      return bStagnating - aStagnating
+    }
+
+    const aVariation = hasStagnationInBodyPart && latestPerformedCategory && a.category && a.category !== latestPerformedCategory ? 1 : 0
+    const bVariation = hasStagnationInBodyPart && latestPerformedCategory && b.category && b.category !== latestPerformedCategory ? 1 : 0
+    if (aVariation !== bVariation) {
+      return bVariation - aVariation
+    }
+
+    const aConsecutive = consecutiveUseCountByExercise.get(a.name) || 0
+    const bConsecutive = consecutiveUseCountByExercise.get(b.name) || 0
+    if (aConsecutive !== bConsecutive) {
+      return aConsecutive - bConsecutive
+    }
+
+    if (aLastPerformed !== bLastPerformed) {
+      return (aLastPerformed || '').localeCompare(bLastPerformed || '')
+    }
+
+    return a.name.localeCompare(b.name)
+  })
+
+  const sortedLines = sortedCandidates.map((exercise) => {
+    const lastPerformed = lastPerformedByExercise.get(exercise.name)
     const details = [
       exercise.category && `カテゴリ: ${exercise.category}`,
       exercise.isBodyweight && '自重',
+      lastPerformed
+        ? `${lastPerformed}（${diffDays(lastPerformed, referenceDate || new Date().toISOString().split('T')[0])}日前）`
+        : '最近未実施',
+      lastSetsByExercise.get(exercise.name) && `前回: ${lastSetsByExercise.get(exercise.name)}`,
+      (consecutiveUseCountByExercise.get(exercise.name) || 0) >= 2
+        ? `${consecutiveUseCountByExercise.get(exercise.name)}回連続採用中`
+        : null,
+      stagnatingExerciseNames.has(exercise.name) && '停滞中',
+      hasStagnationInBodyPart && latestPerformedCategory && exercise.category && exercise.category !== latestPerformedCategory
+        ? '刺激変化候補'
+        : null,
     ].filter(Boolean)
 
     return details.length > 0
@@ -578,7 +669,7 @@ export function formatRecommendedExerciseCandidates(
       : `- ${exercise.name}`
   })
 
-  return `推奨部位の種目候補（${topPriority.bodyPart}）\n${lines.join('\n')}`
+  return `推奨部位の種目候補（${topPriority.bodyPart}）\n${sortedLines.join('\n')}`
 }
 
 export function formatAiPlanContextSummary(
@@ -591,7 +682,7 @@ export function formatAiPlanContextSummary(
     formatBodyPartWeeklySetSummary(logs, exerciseMasters, structuredProfile),
     formatBodyPartLastPerformedSummary(logs, exerciseMasters),
     formatRecommendedBodyPartSummary(logs, exerciseMasters, structuredProfile),
-    formatRecommendedExerciseCandidates(logs, exerciseMasters, structuredProfile),
+    formatRecommendedExerciseCandidates(logs, exerciseMasters, structuredProfile, undefined, stagnationInfos),
     formatBodyPartPrioritySummary(logs, exerciseMasters, structuredProfile),
     formatStagnationSummary(stagnationInfos),
   ].join('\n\n')
@@ -617,9 +708,10 @@ export function buildPrompt(
 4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
 5. 「ディロード推奨」がある場合は、ボリュームを通常の50-60%に抑えたプランを提案してください
 6. 「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください
-7. 「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください
-8. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
-9. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+7. 「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください。最近やっていない種目や、停滞打破のために刺激を変えやすい候補を優先してください
+8. 同じ種目が連続採用中の場合は固定化を避け、補助種目では別カテゴリの候補を1つ混ぜてください
+9. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
+10. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
