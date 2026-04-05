@@ -7,6 +7,7 @@ import {
   formatBodyPartLastPerformedSummary,
   buildBodyPartPriorities,
   formatRecommendedBodyPartSummary,
+  formatRecommendedExerciseCandidates,
   formatBodyPartPrioritySummary,
   formatStagnationSummary,
   buildPrompt,
@@ -177,6 +178,7 @@ describe('AI plan summaries', () => {
   const masters: ExerciseMaster[] = [
     { id: 1, name: 'ベンチプレス', bodyPart: '胸', category: 'コンパウンド', createdAt: Date.now() },
     { id: 2, name: 'ラットプルダウン', bodyPart: '背中', category: 'コンパウンド', createdAt: Date.now() },
+    { id: 3, name: 'ダンベルフライ', bodyPart: '胸', category: 'アイソレーション', createdAt: Date.now() },
   ]
 
   const logs: WorkoutLog[] = [
@@ -224,23 +226,30 @@ describe('AI plan summaries', () => {
 
   it('部位優先度をセット数と休養日数で並べる', () => {
     const result = buildBodyPartPriorities(logs, masters, '2024-01-16')
-    expect(result[0].weeklySets).toBe(0)
-    expect(result[1].weeklySets).toBe(0)
-    expect(result[2].weeklySets).toBe(0)
-    expect(result.findIndex((item) => item.bodyPart === '胸')).toBeGreaterThan(2)
+    expect(result[0].bodyPart).toBe('背中')
+    expect(result[0].weeklySets).toBe(1)
+    expect(result[1].bodyPart).toBe('胸')
+    expect(result[1].weeklySets).toBe(2)
   })
 
   it('優先候補部位をフォーマットする', () => {
     const result = formatBodyPartPrioritySummary(logs, masters, '2024-01-16')
     expect(result).toContain('今日の優先候補部位')
-    expect(result).toContain('1. ')
-    expect(result).toContain('0セット / 前回 記録なし')
+    expect(result).toContain('1. 背中')
+    expect(result).toContain('1セット / 前回 2024-01-13（3日前）')
   })
 
   it('今日の推奨部位をフォーマットする', () => {
     const result = formatRecommendedBodyPartSummary(logs, masters, '2024-01-16')
     expect(result).toContain('今日の推奨部位')
+    expect(result).toContain('背中')
     expect(result).toContain('- 理由:')
+  })
+
+  it('推奨部位の種目候補をフォーマットする', () => {
+    const result = formatRecommendedExerciseCandidates(logs, masters, '2024-01-16')
+    expect(result).toContain('推奨部位の種目候補')
+    expect(result).toContain('ラットプルダウン')
   })
 })
 
@@ -425,6 +434,7 @@ describe('buildPrompt', () => {
     expect(result).toContain('胸: 2セット')
     expect(result).toContain('胸: 2024-01-15')
     expect(result).toContain('今日の推奨部位')
+    expect(result).toContain('推奨部位の種目候補')
     expect(result).toContain('今日の優先候補部位')
   })
 
@@ -432,6 +442,7 @@ describe('buildPrompt', () => {
     const result = buildPrompt(null, baseExerciseMasters, [], '')
 
     expect(result).toContain('「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください')
+    expect(result).toContain('「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください')
     expect(result).toContain('上位1〜2部位を補助候補としてプランに反映してください')
     expect(result).toContain('今日の状態・リクエスト')
   })

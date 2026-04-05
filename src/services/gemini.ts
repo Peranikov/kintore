@@ -5,6 +5,7 @@ import type {
   StagnationInfo,
   DeloadSuggestion,
   StructuredUserProfile,
+  ExerciseBodyPart,
 } from '../types'
 import { getActiveDeloadSuggestion, getDeloadDismissal } from './deload'
 import { detectStagnation, formatStagnationForPrompt } from '../utils/stagnationDetection'
@@ -370,7 +371,12 @@ export function buildBodyPartPriorities(
   referenceDate: string = new Date().toISOString().split('T')[0],
 ): BodyPartPriority[] {
   const skippedBodyParts = new Set(['有酸素', 'その他'])
-  const lastRelevantBodyParts = EXERCISE_BODY_PARTS.filter((bodyPart) => !skippedBodyParts.has(bodyPart))
+  const availableBodyParts = new Set(
+    exerciseMasters
+      .map((exercise) => exercise.bodyPart)
+      .filter((bodyPart): bodyPart is ExerciseBodyPart => Boolean(bodyPart) && bodyPart !== '有酸素' && bodyPart !== 'その他')
+  )
+  const lastRelevantBodyParts = EXERCISE_BODY_PARTS.filter((bodyPart) => availableBodyParts.has(bodyPart))
   const latestLogDate = logs.length > 0
     ? logs.reduce((latest, log) => log.date > latest ? log.date : latest, logs[0].date)
     : referenceDate
@@ -472,6 +478,39 @@ export function formatRecommendedBodyPartSummary(
   return `今日の推奨部位\n- ${topPriority.bodyPart}\n- 理由: ${reasons.join(' / ')}`
 }
 
+export function formatRecommendedExerciseCandidates(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+  referenceDate?: string,
+): string {
+  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, referenceDate)[0]
+
+  if (!topPriority) {
+    return '推奨部位に対応する種目候補はありません。'
+  }
+
+  const candidates = exerciseMasters
+    .filter((exercise) => exercise.bodyPart === topPriority.bodyPart && !exercise.isCardio)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  if (candidates.length === 0) {
+    return '推奨部位に対応する種目候補はありません。'
+  }
+
+  const lines = candidates.map((exercise) => {
+    const details = [
+      exercise.category && `カテゴリ: ${exercise.category}`,
+      exercise.isBodyweight && '自重',
+    ].filter(Boolean)
+
+    return details.length > 0
+      ? `- ${exercise.name}（${details.join(' / ')}）`
+      : `- ${exercise.name}`
+  })
+
+  return `推奨部位の種目候補（${topPriority.bodyPart}）\n${lines.join('\n')}`
+}
+
 export function formatAiPlanContextSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
@@ -481,6 +520,7 @@ export function formatAiPlanContextSummary(
     formatBodyPartWeeklySetSummary(logs, exerciseMasters),
     formatBodyPartLastPerformedSummary(logs, exerciseMasters),
     formatRecommendedBodyPartSummary(logs, exerciseMasters),
+    formatRecommendedExerciseCandidates(logs, exerciseMasters),
     formatBodyPartPrioritySummary(logs, exerciseMasters),
     formatStagnationSummary(stagnationInfos),
   ].join('\n\n')
@@ -505,8 +545,9 @@ export function buildPrompt(
 4. 「停滞中の種目」がある場合は、停滞を打破するための対策を考慮してください（重量を下げて回数を増やす、別の種目に変更するなど）
 5. 「ディロード推奨」がある場合は、ボリュームを通常の50-60%に抑えたプランを提案してください
 6. 「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください
-7. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
-8. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+7. 「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください
+8. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
+9. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
 
 {
   "exercises": [
