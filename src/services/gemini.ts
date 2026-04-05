@@ -71,8 +71,19 @@ export interface GeneratedPlan {
 interface BodyPartPriority {
   bodyPart: string
   weeklySets: number
+  targetWeeklySets: number | null
+  targetGap: number | null
   lastPerformed: string | null
   daysSinceLastPerformed: number | null
+}
+
+const BODY_PART_TARGET_KEYS: Record<string, keyof StructuredUserProfile> = {
+  胸: 'weeklySetTargetChest',
+  背中: 'weeklySetTargetBack',
+  肩: 'weeklySetTargetShoulders',
+  脚: 'weeklySetTargetLegs',
+  腕: 'weeklySetTargetArms',
+  体幹: 'weeklySetTargetCore',
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -98,6 +109,12 @@ export const EMPTY_STRUCTURED_USER_PROFILE: StructuredUserProfile = {
   weeklyFrequency: '',
   sessionDurationMinutes: '',
   focusAreas: '',
+  weeklySetTargetChest: '',
+  weeklySetTargetBack: '',
+  weeklySetTargetShoulders: '',
+  weeklySetTargetLegs: '',
+  weeklySetTargetArms: '',
+  weeklySetTargetCore: '',
   limitations: '',
   bodyMetrics: '',
   additionalNotes: '',
@@ -110,6 +127,12 @@ function normalizeStructuredUserProfile(profile: Partial<StructuredUserProfile> 
     weeklyFrequency: profile?.weeklyFrequency?.trim() || '',
     sessionDurationMinutes: profile?.sessionDurationMinutes?.trim() || '',
     focusAreas: profile?.focusAreas?.trim() || '',
+    weeklySetTargetChest: profile?.weeklySetTargetChest?.trim() || '',
+    weeklySetTargetBack: profile?.weeklySetTargetBack?.trim() || '',
+    weeklySetTargetShoulders: profile?.weeklySetTargetShoulders?.trim() || '',
+    weeklySetTargetLegs: profile?.weeklySetTargetLegs?.trim() || '',
+    weeklySetTargetArms: profile?.weeklySetTargetArms?.trim() || '',
+    weeklySetTargetCore: profile?.weeklySetTargetCore?.trim() || '',
     limitations: profile?.limitations?.trim() || '',
     bodyMetrics: profile?.bodyMetrics?.trim() || '',
     additionalNotes: profile?.additionalNotes?.trim() || '',
@@ -122,18 +145,39 @@ function hasStructuredUserProfileContent(profile: StructuredUserProfile): boolea
 
 export function formatStructuredUserProfile(profile: Partial<StructuredUserProfile> | null | undefined): string | null {
   const normalized = normalizeStructuredUserProfile(profile)
+  const weeklySetTargetLine = Object.entries(BODY_PART_TARGET_KEYS)
+    .map(([bodyPart, key]) => normalized[key] ? `${bodyPart} ${normalized[key]}セット` : null)
+    .filter(Boolean)
+    .join(' / ')
   const lines = [
     normalized.primaryGoal && `- 主な目標: ${normalized.primaryGoal}`,
     normalized.trainingExperience && `- トレーニング歴: ${normalized.trainingExperience}`,
     normalized.weeklyFrequency && `- 週あたりのトレーニング回数: ${normalized.weeklyFrequency}`,
     normalized.sessionDurationMinutes && `- 1回あたりの目安時間: ${normalized.sessionDurationMinutes}分`,
     normalized.focusAreas && `- 強化したい部位: ${normalized.focusAreas}`,
+    weeklySetTargetLine && `- 部位ごとの目標週セット数: ${weeklySetTargetLine}`,
     normalized.limitations && `- 痛み・避けたい動き・配慮事項: ${normalized.limitations}`,
     normalized.bodyMetrics && `- 体格・体組成メモ: ${normalized.bodyMetrics}`,
     normalized.additionalNotes && `- 補足メモ: ${normalized.additionalNotes}`,
   ].filter(Boolean)
 
   return lines.length > 0 ? lines.join('\n') : null
+}
+
+function getBodyPartWeeklySetTarget(
+  profile: StructuredUserProfile | null | undefined,
+  bodyPart: string,
+): number | null {
+  if (!profile) return null
+
+  const key = BODY_PART_TARGET_KEYS[bodyPart]
+  if (!key) return null
+
+  const rawValue = profile[key]
+  if (!rawValue) return null
+
+  const parsed = Number(rawValue)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
 function parseStructuredUserProfile(raw: string | null | undefined): StructuredUserProfile | null {
@@ -289,6 +333,7 @@ export function formatExerciseMasters(masters: ExerciseMaster[]): string {
 export function formatBodyPartWeeklySetSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
+  structuredProfile?: StructuredUserProfile | null,
 ): string {
   if (logs.length === 0) {
     return '直近1週間の記録はありません。'
@@ -311,7 +356,11 @@ export function formatBodyPartWeeklySetSummary(
   const lines = EXERCISE_BODY_PARTS
     .map((bodyPart) => {
       const count = setCounts.get(bodyPart)
-      return count ? `- ${bodyPart}: ${count}セット` : null
+      if (!count) return null
+      const target = getBodyPartWeeklySetTarget(structuredProfile, bodyPart)
+      return target
+        ? `- ${bodyPart}: ${count} / ${target}セット`
+        : `- ${bodyPart}: ${count}セット`
     })
     .filter(Boolean)
 
@@ -368,6 +417,7 @@ export function formatStagnationSummary(stagnationInfos: StagnationInfo[]): stri
 export function buildBodyPartPriorities(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
+  structuredProfile?: StructuredUserProfile | null,
   referenceDate: string = new Date().toISOString().split('T')[0],
 ): BodyPartPriority[] {
   const skippedBodyParts = new Set(['有酸素', 'その他'])
@@ -410,11 +460,23 @@ export function buildBodyPartPriorities(
       return {
         bodyPart,
         weeklySets: weeklySetCounts.get(bodyPart) || 0,
+        targetWeeklySets: getBodyPartWeeklySetTarget(structuredProfile, bodyPart),
+        targetGap: (() => {
+          const target = getBodyPartWeeklySetTarget(structuredProfile, bodyPart)
+          if (target == null) return null
+          return Math.max(target - (weeklySetCounts.get(bodyPart) || 0), 0)
+        })(),
         lastPerformed,
         daysSinceLastPerformed: lastPerformed ? diffDays(lastPerformed, referenceDate) : null,
       }
     })
     .sort((a, b) => {
+      const aGap = a.targetGap ?? -1
+      const bGap = b.targetGap ?? -1
+      if (aGap !== bGap) {
+        return bGap - aGap
+      }
+
       if (a.weeklySets !== b.weeklySets) {
         return a.weeklySets - b.weeklySets
       }
@@ -432,9 +494,10 @@ export function buildBodyPartPriorities(
 export function formatBodyPartPrioritySummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
+  structuredProfile?: StructuredUserProfile | null,
   referenceDate?: string,
 ): string {
-  const priorities = buildBodyPartPriorities(logs, exerciseMasters, referenceDate).slice(0, 3)
+  const priorities = buildBodyPartPriorities(logs, exerciseMasters, structuredProfile, referenceDate).slice(0, 3)
 
   if (priorities.length === 0) {
     return '優先部位の候補はありません。'
@@ -444,7 +507,10 @@ export function formatBodyPartPrioritySummary(
     const lastPerformedPart = priority.lastPerformed
       ? `${priority.lastPerformed}（${priority.daysSinceLastPerformed}日前）`
       : '記録なし'
-    return `${index + 1}. ${priority.bodyPart}: 直近1週間 ${priority.weeklySets}セット / 前回 ${lastPerformedPart}`
+    const targetPart = priority.targetWeeklySets
+      ? ` / 目標 ${priority.targetWeeklySets}セット / 不足 ${priority.targetGap}セット`
+      : ''
+    return `${index + 1}. ${priority.bodyPart}: 直近1週間 ${priority.weeklySets}セット${targetPart} / 前回 ${lastPerformedPart}`
   })
 
   return `今日の優先候補部位\n${lines.join('\n')}`
@@ -453,9 +519,10 @@ export function formatBodyPartPrioritySummary(
 export function formatRecommendedBodyPartSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
+  structuredProfile?: StructuredUserProfile | null,
   referenceDate?: string,
 ): string {
-  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, referenceDate)[0]
+  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, structuredProfile, referenceDate)[0]
 
   if (!topPriority) {
     return '今日の推奨部位はありません。'
@@ -463,7 +530,9 @@ export function formatRecommendedBodyPartSummary(
 
   const reasons: string[] = []
 
-  if (topPriority.weeklySets === 0) {
+  if (topPriority.targetWeeklySets && topPriority.targetGap != null) {
+    reasons.push(`目標 ${topPriority.targetWeeklySets}セットに対して ${topPriority.targetGap}セット不足`)
+  } else if (topPriority.weeklySets === 0) {
     reasons.push('直近1週間のセット数が0')
   } else {
     reasons.push(`直近1週間のセット数が${topPriority.weeklySets}セットと少なめ`)
@@ -481,9 +550,10 @@ export function formatRecommendedBodyPartSummary(
 export function formatRecommendedExerciseCandidates(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
+  structuredProfile?: StructuredUserProfile | null,
   referenceDate?: string,
 ): string {
-  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, referenceDate)[0]
+  const topPriority = buildBodyPartPriorities(logs, exerciseMasters, structuredProfile, referenceDate)[0]
 
   if (!topPriority) {
     return '推奨部位に対応する種目候補はありません。'
@@ -515,13 +585,14 @@ export function formatAiPlanContextSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
   stagnationInfos: StagnationInfo[],
+  structuredProfile?: StructuredUserProfile | null,
 ): string {
   return [
-    formatBodyPartWeeklySetSummary(logs, exerciseMasters),
+    formatBodyPartWeeklySetSummary(logs, exerciseMasters, structuredProfile),
     formatBodyPartLastPerformedSummary(logs, exerciseMasters),
-    formatRecommendedBodyPartSummary(logs, exerciseMasters),
-    formatRecommendedExerciseCandidates(logs, exerciseMasters),
-    formatBodyPartPrioritySummary(logs, exerciseMasters),
+    formatRecommendedBodyPartSummary(logs, exerciseMasters, structuredProfile),
+    formatRecommendedExerciseCandidates(logs, exerciseMasters, structuredProfile),
+    formatBodyPartPrioritySummary(logs, exerciseMasters, structuredProfile),
     formatStagnationSummary(stagnationInfos),
   ].join('\n\n')
 }
@@ -529,6 +600,7 @@ export function formatAiPlanContextSummary(
 // プロンプトを構築
 export function buildPrompt(
   profile: string | null,
+  structuredProfile: StructuredUserProfile | null,
   exerciseMasters: ExerciseMaster[],
   recentLogs: WorkoutLog[],
   userMemo: string,
@@ -570,7 +642,7 @@ export function buildPrompt(
   const historySection = `\n\n■ 最近のトレーニング履歴（直近7回分）\n${formatWorkoutLogs(recentLogs)}`
 
   const trainingSummarySection = recentLogs.length > 0 || stagnationInfos.length > 0
-    ? `\n\n■ AI判断用サマリ\n${formatAiPlanContextSummary(recentLogs, exerciseMasters, stagnationInfos)}`
+    ? `\n\n■ AI判断用サマリ\n${formatAiPlanContextSummary(recentLogs, exerciseMasters, stagnationInfos, structuredProfile)}`
     : ''
 
   // 直近の評価を取得してプロンプトに追加
@@ -868,8 +940,9 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   }
 
   // 停滞検出・ディロード検出用に多めのログを取得
-  const [profile, exerciseMasters, recentLogs, allRecentLogs, model, deloadDismissal] = await Promise.all([
+  const [profile, structuredProfile, exerciseMasters, recentLogs, allRecentLogs, model, deloadDismissal] = await Promise.all([
     getUserProfile(),
+    getStructuredUserProfile(),
     db.exerciseMasters.toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(7).toArray(),
     db.workoutLogs.orderBy('date').reverse().limit(30).toArray(),  // 停滞・ディロード検出用
@@ -887,7 +960,7 @@ export async function generatePlan(userMemo: string): Promise<GeneratedPlan> {
   // ディロード推奨を検出
   const deloadSuggestion = getActiveDeloadSuggestion(allRecentLogs, exerciseMasters, deloadDismissal)
 
-  const prompt = buildPrompt(profile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
+  const prompt = buildPrompt(profile, structuredProfile, exerciseMasters, recentLogs, userMemo, stagnationInfos, deloadSuggestion)
 
   const response = await fetch(`${getApiUrl(model)}?key=${apiKey}`, {
     method: 'POST',

@@ -209,6 +209,16 @@ describe('AI plan summaries', () => {
     expect(result).toContain('背中: 1セット')
   })
 
+  it('目標セット数付きで週セット数をフォーマットする', () => {
+    const result = formatBodyPartWeeklySetSummary(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '10',
+    })
+    expect(result).toContain('胸: 2 / 12セット')
+    expect(result).toContain('背中: 1 / 10セット')
+  })
+
   it('部位ごとの前回実施日をフォーマットする', () => {
     const result = formatBodyPartLastPerformedSummary(logs, masters)
     expect(result).toContain('胸: 2024-01-15')
@@ -225,31 +235,49 @@ describe('AI plan summaries', () => {
   })
 
   it('部位優先度をセット数と休養日数で並べる', () => {
-    const result = buildBodyPartPriorities(logs, masters, '2024-01-16')
-    expect(result[0].bodyPart).toBe('背中')
-    expect(result[0].weeklySets).toBe(1)
-    expect(result[1].bodyPart).toBe('胸')
-    expect(result[1].weeklySets).toBe(2)
+    const result = buildBodyPartPriorities(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '8',
+    }, '2024-01-16')
+    expect(result[0].bodyPart).toBe('胸')
+    expect(result[0].targetGap).toBe(10)
+    expect(result[1].bodyPart).toBe('背中')
+    expect(result[1].targetGap).toBe(7)
   })
 
   it('優先候補部位をフォーマットする', () => {
-    const result = formatBodyPartPrioritySummary(logs, masters, '2024-01-16')
+    const result = formatBodyPartPrioritySummary(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '8',
+    }, '2024-01-16')
     expect(result).toContain('今日の優先候補部位')
-    expect(result).toContain('1. 背中')
-    expect(result).toContain('1セット / 前回 2024-01-13（3日前）')
+    expect(result).toContain('1. 胸')
+    expect(result).toContain('目標 12セット / 不足 10セット')
   })
 
   it('今日の推奨部位をフォーマットする', () => {
-    const result = formatRecommendedBodyPartSummary(logs, masters, '2024-01-16')
+    const result = formatRecommendedBodyPartSummary(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '8',
+    }, '2024-01-16')
     expect(result).toContain('今日の推奨部位')
-    expect(result).toContain('背中')
+    expect(result).toContain('胸')
+    expect(result).toContain('目標 12セットに対して 10セット不足')
     expect(result).toContain('- 理由:')
   })
 
   it('推奨部位の種目候補をフォーマットする', () => {
-    const result = formatRecommendedExerciseCandidates(logs, masters, '2024-01-16')
+    const result = formatRecommendedExerciseCandidates(logs, masters, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+      weeklySetTargetBack: '8',
+    }, '2024-01-16')
     expect(result).toContain('推奨部位の種目候補')
-    expect(result).toContain('ラットプルダウン')
+    expect(result).toContain('ベンチプレス')
+    expect(result).toContain('ダンベルフライ')
   })
 })
 
@@ -371,7 +399,7 @@ describe('buildPrompt', () => {
   ]
 
   it('基本的なプロンプトを構築する', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
     expect(result).toContain('パーソナルトレーナー')
     expect(result).toContain('利用可能な器具')
@@ -380,14 +408,14 @@ describe('buildPrompt', () => {
   })
 
   it('プロフィールが含まれる', () => {
-    const result = buildPrompt('30代男性、筋肥大目的', baseExerciseMasters, [], '')
+    const result = buildPrompt('30代男性、筋肥大目的', null, baseExerciseMasters, [], '')
 
     expect(result).toContain('ユーザープロフィール')
     expect(result).toContain('30代男性、筋肥大目的')
   })
 
   it('プロフィールがnullの場合、セクションが含まれない', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
     expect(result).not.toContain('ユーザープロフィール')
   })
@@ -405,7 +433,7 @@ describe('buildPrompt', () => {
       },
     ]
 
-    const result = buildPrompt(null, baseExerciseMasters, logs, '')
+    const result = buildPrompt(null, null, baseExerciseMasters, logs, '')
 
     expect(result).toContain('最近のトレーニング履歴')
     expect(result).toContain('2024-01-15')
@@ -428,10 +456,13 @@ describe('buildPrompt', () => {
       },
     ]
 
-    const result = buildPrompt(null, masters, logs, '')
+    const result = buildPrompt(null, {
+      ...EMPTY_STRUCTURED_USER_PROFILE,
+      weeklySetTargetChest: '12',
+    }, masters, logs, '')
 
     expect(result).toContain('AI判断用サマリ')
-    expect(result).toContain('胸: 2セット')
+    expect(result).toContain('胸: 2 / 12セット')
     expect(result).toContain('胸: 2024-01-15')
     expect(result).toContain('今日の推奨部位')
     expect(result).toContain('推奨部位の種目候補')
@@ -439,7 +470,7 @@ describe('buildPrompt', () => {
   })
 
   it('優先候補部位をプラン中心にする指示が含まれる', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
     expect(result).toContain('「今日の推奨部位」がある場合は、その部位を最優先でプランの軸にしてください')
     expect(result).toContain('「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください')
@@ -448,20 +479,20 @@ describe('buildPrompt', () => {
   })
 
   it('ユーザーメモが含まれる', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '今日は胸を中心にやりたい')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '今日は胸を中心にやりたい')
 
     expect(result).toContain('今日の状態・リクエスト')
     expect(result).toContain('今日は胸を中心にやりたい')
   })
 
   it('空のメモの場合、セクションが含まれない', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
     expect(result).not.toContain('■ 今日の状態・リクエスト')
   })
 
   it('空白のみのメモの場合、セクションが含まれない', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '   ')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '   ')
 
     expect(result).not.toContain('■ 今日の状態・リクエスト')
   })
@@ -481,7 +512,7 @@ describe('buildPrompt', () => {
       },
     ]
 
-    const result = buildPrompt(null, baseExerciseMasters, logs, '')
+    const result = buildPrompt(null, null, baseExerciseMasters, logs, '')
 
     expect(result).toContain('前回のトレーニング評価')
     expect(result).toContain('よく頑張りました！')
@@ -500,14 +531,14 @@ describe('buildPrompt', () => {
       },
     ]
 
-    const result = buildPrompt(null, baseExerciseMasters, logs, '')
+    const result = buildPrompt(null, null, baseExerciseMasters, logs, '')
 
     // 評価セクションヘッダー「■ 前回のトレーニング評価」が含まれないことを確認
     expect(result).not.toContain('■ 前回のトレーニング評価')
   })
 
   it('JSON形式の指示が含まれる', () => {
-    const result = buildPrompt(null, baseExerciseMasters, [], '')
+    const result = buildPrompt(null, null, baseExerciseMasters, [], '')
 
     expect(result).toContain('"exercises"')
     expect(result).toContain('"name"')

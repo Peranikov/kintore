@@ -60,6 +60,12 @@ export interface StructuredUserProfile {
   weeklyFrequency: string
   sessionDurationMinutes: string
   focusAreas: string
+  weeklySetTargetChest: string
+  weeklySetTargetBack: string
+  weeklySetTargetShoulders: string
+  weeklySetTargetLegs: string
+  weeklySetTargetArms: string
+  weeklySetTargetCore: string
   limitations: string
   bodyMetrics: string
   additionalNotes: string

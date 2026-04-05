@@ -17,6 +17,14 @@ const PRIMARY_GOALS = ['筋肥大', '筋力向上', '減量しながら筋量維
 const EXPERIENCE_LEVELS = ['未経験', '半年未満', '半年〜1年', '1〜3年', '3年以上']
 const WEEKLY_FREQUENCIES = ['週1回', '週2回', '週3回', '週4回', '週5回以上']
 const SESSION_DURATIONS = ['30', '45', '60', '75', '90', '120']
+const WEEKLY_SET_TARGET_FIELDS: Array<{ key: keyof StructuredUserProfile; label: string }> = [
+  { key: 'weeklySetTargetChest', label: '胸' },
+  { key: 'weeklySetTargetBack', label: '背中' },
+  { key: 'weeklySetTargetShoulders', label: '肩' },
+  { key: 'weeklySetTargetLegs', label: '脚' },
+  { key: 'weeklySetTargetArms', label: '腕' },
+  { key: 'weeklySetTargetCore', label: '体幹' },
+]
 
 function createEmptyProfile(): StructuredUserProfile {
   return { ...EMPTY_STRUCTURED_USER_PROFILE }
@@ -237,6 +245,32 @@ export function AISettingsPage() {
                 placeholder="例: 胸、背中、脚"
               />
             </label>
+
+            <div>
+              <span className="text-sm font-medium text-gray-700">部位ごとの目標週セット数</span>
+              <p className="mt-1 text-xs text-gray-500">
+                目安のセット数です。未入力の部位は優先度計算で目標未設定として扱います。
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {WEEKLY_SET_TARGET_FIELDS.map((field) => (
+                  <label key={field.key} className="block">
+                    <span className="text-sm text-gray-600">{field.label}</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={profile[field.key]}
+                        onChange={(e) => updateProfile(field.key, e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-3 text-sm"
+                        placeholder="例: 12"
+                      />
+                      <span className="text-sm text-gray-500">set</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
 
             <label className="block">
               <span className="text-sm font-medium text-gray-700">痛み・避けたい動き・配慮事項</span>
