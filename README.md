@@ -42,7 +42,13 @@ npm run verify    # check + eval
 - 共通の正本は [AGENTS.md](/home/peranikov/ghq/github.com/peranikov/kintore/AGENTS.md)
 - Claude Code は [CLAUDE.md](/home/peranikov/ghq/github.com/peranikov/kintore/CLAUDE.md) から `@AGENTS.md` を参照
 
-どちらのエージェントでも、実装前に仕様書を確認し、変更後は `npm run check` を実行する前提です。
+どちらのエージェントでも、以下の開発フローを前提とします。
+
+1. `docs/SPEC.md` で関連仕様を確認する
+2. 実装前に変更範囲とテスト方針を整理する
+3. 失敗するテストを先に追加してから実装する
+4. 変更後に `npm run check` を実行する
+5. 検証が通ったら commit し、その後 push する
 
 ## Harness Engineering
 
