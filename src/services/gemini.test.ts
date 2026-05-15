@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect } from 'vitest'
 import {
   formatWorkoutLogs,
   formatExerciseMasters,
@@ -14,8 +14,44 @@ import {
   parseGeneratedPlan,
   validateGeneratedPlan,
   EMPTY_STRUCTURED_USER_PROFILE,
+  DEFAULT_GEMINI_MODEL,
+  GEMINI_MODELS,
+  getGeminiModel,
+  saveGeminiModel,
 } from './gemini'
+import { db } from '../db'
 import type { WorkoutLog, ExerciseMaster, StagnationInfo } from '../types'
+
+describe('Gemini model settings', () => {
+  beforeEach(async () => {
+    await db.appSettings.clear()
+  })
+
+  it('uses the GA Flash-Lite model as the default model', async () => {
+    const modelIds: readonly string[] = GEMINI_MODELS.map((model) => model.id)
+
+    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.1-flash-lite')
+    expect(GEMINI_MODELS[0]).toMatchObject({
+      id: 'gemini-3.1-flash-lite',
+      label: 'Gemini 3.1 Flash-Lite',
+    })
+    expect(modelIds).not.toContain('gemini-3.1-flash-lite-preview')
+    await expect(getGeminiModel()).resolves.toBe('gemini-3.1-flash-lite')
+  })
+
+  it('migrates the deprecated preview model id when reading saved settings', async () => {
+    await db.appSettings.add({ key: 'geminiModel', value: 'gemini-3.1-flash-lite-preview' })
+
+    await expect(getGeminiModel()).resolves.toBe('gemini-3.1-flash-lite')
+  })
+
+  it('normalizes the deprecated preview model id before saving settings', async () => {
+    await saveGeminiModel('gemini-3.1-flash-lite-preview')
+
+    const saved = await db.appSettings.where('key').equals('geminiModel').first()
+    expect(saved?.value).toBe('gemini-3.1-flash-lite')
+  })
+})
 
 describe('formatWorkoutLogs', () => {
   it('空の配列の場合、メッセージを返す', () => {

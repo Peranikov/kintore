@@ -19,13 +19,21 @@ import { EXERCISE_BODY_PARTS } from '../utils/exerciseMetadata'
 import { formatLocalDate, todayLocalDate } from '../utils/date'
 
 export const GEMINI_MODELS = [
-  { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite (Preview)', description: 'コスパ良・最新' },
+  { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', description: 'コスパ良・GA' },
   { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', description: '最安・最速' },
   { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'バランス型' },
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: '高品質推論' },
 ] as const
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview'
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
+
+const GEMINI_MODEL_ALIASES: Record<string, string> = {
+  'gemini-3.1-flash-lite-preview': DEFAULT_GEMINI_MODEL,
+}
+
+function normalizeGeminiModel(model: string): string {
+  return GEMINI_MODEL_ALIASES[model] || model
+}
 
 function getApiUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
@@ -228,7 +236,7 @@ export async function getApiKey(): Promise<string | null> {
 
 export async function getGeminiModel(): Promise<string> {
   const setting = await db.appSettings.where('key').equals('geminiModel').first()
-  return setting?.value || DEFAULT_GEMINI_MODEL
+  return setting?.value ? normalizeGeminiModel(setting.value) : DEFAULT_GEMINI_MODEL
 }
 
 export async function getUserProfile(): Promise<string | null> {
@@ -278,11 +286,12 @@ export async function saveApiKey(apiKey: string): Promise<void> {
 }
 
 export async function saveGeminiModel(model: string): Promise<void> {
+  const normalizedModel = normalizeGeminiModel(model)
   const existing = await db.appSettings.where('key').equals('geminiModel').first()
   if (existing) {
-    await db.appSettings.update(existing.id!, { value: model })
+    await db.appSettings.update(existing.id!, { value: normalizedModel })
   } else {
-    await db.appSettings.add({ key: 'geminiModel', value: model })
+    await db.appSettings.add({ key: 'geminiModel', value: normalizedModel })
   }
 }
 

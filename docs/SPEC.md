@@ -195,6 +195,8 @@ AIプランの詳細な決定ロジックは [docs/AI_PLAN.md](/home/peranikov/g
   - 補足メモ
 - プロフィールは構造化データとして保存し、AIプロンプトにはラベル付きテキストへ整形して含める
 - APIキーはGoogle AI Studioで無料取得可能
+- 既定モデルは `gemini-3.1-flash-lite`
+- 保存済み設定が旧プレビュー版 `gemini-3.1-flash-lite-preview` の場合は、API呼び出し時に `gemini-3.1-flash-lite` として扱う
 
 #### AIトレーニングプラン生成（/plan-create）
 - チャット形式のUIでAIとやり取り
