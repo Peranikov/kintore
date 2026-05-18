@@ -10,6 +10,7 @@ import {
   formatRecommendedExerciseCandidates,
   formatBodyPartPrioritySummary,
   formatStagnationSummary,
+  formatProgressionRecommendationSummary,
   buildPrompt,
   parseGeneratedPlan,
   validateGeneratedPlan,
@@ -334,6 +335,41 @@ describe('AI plan summaries', () => {
     expect(result).toContain('停滞中')
     expect(result).toContain('刺激変化候補')
   })
+
+  it('全セットが上限回数に到達したウェイト種目は次回重量アップを推奨する', () => {
+    const result = formatProgressionRecommendationSummary([
+      {
+        id: 1,
+        date: '2024-01-15',
+        exercises: [
+          { id: 'ex1', name: 'ベンチプレス', sets: [{ weight: 60, reps: 12 }, { weight: 60, reps: 12 }, { weight: 60, reps: 12 }] },
+        ],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ], masters)
+
+    expect(result).toContain('ルールベース推奨セット')
+    expect(result).toContain('ベンチプレス: 62.5kg×8回, 62.5kg×8回, 62.5kg×8回')
+    expect(result).toContain('前回全セットが12回以上')
+  })
+
+  it('上限回数に未達のウェイト種目は同重量で回数増加を推奨する', () => {
+    const result = formatProgressionRecommendationSummary([
+      {
+        id: 1,
+        date: '2024-01-15',
+        exercises: [
+          { id: 'ex1', name: 'ベンチプレス', sets: [{ weight: 60, reps: 12 }, { weight: 60, reps: 10 }, { weight: 60, reps: 9 }] },
+        ],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ], masters)
+
+    expect(result).toContain('ベンチプレス: 60kg×12回, 60kg×11回, 60kg×10回')
+    expect(result).toContain('同重量で未達セットの回数を伸ばす')
+  })
 })
 
 describe('parseGeneratedPlan', () => {
@@ -410,6 +446,16 @@ describe('parseGeneratedPlan', () => {
 
     const result = parseGeneratedPlan(json)
     expect(result.advice).toBeUndefined()
+  })
+
+  it('プラン理由をパースする', () => {
+    const json = JSON.stringify({
+      exercises: [{ name: 'ベンチプレス', sets: [{ weight: 60, reps: 10 }] }],
+      rationale: '胸の目標セット数が不足しているため、ベンチプレスを中心にしました。',
+    })
+
+    const result = parseGeneratedPlan(json)
+    expect(result.rationale).toBe('胸の目標セット数が不足しているため、ベンチプレスを中心にしました。')
   })
 
   it('不正なJSONでエラーをスローする', () => {
@@ -559,6 +605,7 @@ describe('buildPrompt', () => {
     expect(result).toContain('今日の推奨部位')
     expect(result).toContain('推奨部位の種目候補')
     expect(result).toContain('今日の優先候補部位')
+    expect(result).toContain('ルールベース推奨セット')
   })
 
   it('優先候補部位をプラン中心にする指示が含まれる', () => {
@@ -649,5 +696,6 @@ describe('buildPrompt', () => {
     expect(result).toContain('"reps"')
     expect(result).toContain('"duration"')
     expect(result).toContain('"distance"')
+    expect(result).toContain('"rationale"')
   })
 })

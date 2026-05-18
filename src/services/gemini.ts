@@ -67,8 +67,9 @@ const PLAN_RESPONSE_SCHEMA = {
       },
     },
     advice: { type: 'string', description: '今日のトレーニングに関するアドバイス' },
+    rationale: { type: 'string', description: 'なぜこのプランになったかの理由。部位優先度、前回記録、ルールベース推奨、例外判断を簡潔に説明する' },
   },
-  required: ['exercises'],
+  required: ['exercises', 'rationale'],
 }
 
 export interface GeneratedExercise {
@@ -79,6 +80,7 @@ export interface GeneratedExercise {
 export interface GeneratedPlan {
   exercises: GeneratedExercise[]
   advice?: string
+  rationale?: string
 }
 
 export function validateGeneratedPlan(plan: GeneratedPlan, exerciseMasters: ExerciseMaster[]): GeneratedPlan {
@@ -123,6 +125,10 @@ const BODY_PART_TARGET_KEYS: Record<string, keyof StructuredUserProfile> = {
   体幹: 'weeklySetTargetCore',
 }
 
+const DEFAULT_PROGRESSION_MIN_REPS = 8
+const DEFAULT_PROGRESSION_MAX_REPS = 12
+const DEFAULT_WEIGHT_INCREMENT_KG = 2.5
+
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr)
   date.setDate(date.getDate() + days)
@@ -135,6 +141,10 @@ function diffDays(fromDate: string, toDate: string): number {
   from.setHours(0, 0, 0, 0)
   to.setHours(0, 0, 0, 0)
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+function roundWeight(value: number): number {
+  return Math.round(value * 10) / 10
 }
 
 const STRUCTURED_USER_PROFILE_KEY = 'structuredUserProfile'
@@ -710,6 +720,49 @@ export function formatRecommendedExerciseCandidates(
   return `推奨部位の種目候補（${topPriority.bodyPart}）\n${sortedLines.join('\n')}`
 }
 
+export function formatProgressionRecommendationSummary(
+  logs: WorkoutLog[],
+  exerciseMasters: ExerciseMaster[],
+): string {
+  const lines = exerciseMasters
+    .filter((master) => !master.isBodyweight && !master.isCardio)
+    .map((master) => {
+      const latestLog = logs
+        .filter((log) => log.exercises.some((exercise) => exercise.name === master.name))
+        .sort((a, b) => b.date.localeCompare(a.date))[0]
+      const latestExercise = latestLog?.exercises.find((exercise) => exercise.name === master.name)
+      const workingSets = latestExercise?.sets.filter((set) => set.weight > 0 && set.reps > 0) || []
+
+      if (!latestLog || workingSets.length === 0) {
+        return null
+      }
+
+      const reachedUpperLimit = workingSets.every((set) => set.reps >= DEFAULT_PROGRESSION_MAX_REPS)
+      const recommendedSets = reachedUpperLimit
+        ? workingSets.map((set) => ({
+          weight: roundWeight(set.weight + DEFAULT_WEIGHT_INCREMENT_KG),
+          reps: DEFAULT_PROGRESSION_MIN_REPS,
+        }))
+        : workingSets.map((set) => ({
+          weight: set.weight,
+          reps: set.reps >= DEFAULT_PROGRESSION_MAX_REPS
+            ? set.reps
+            : Math.min(set.reps + 1, DEFAULT_PROGRESSION_MAX_REPS),
+        }))
+
+      const reason = reachedUpperLimit
+        ? `前回全セットが${DEFAULT_PROGRESSION_MAX_REPS}回以上のため、次回は+${DEFAULT_WEIGHT_INCREMENT_KG}kgして${DEFAULT_PROGRESSION_MIN_REPS}回から再開`
+        : `前回は${DEFAULT_PROGRESSION_MAX_REPS}回上限に未達のセットがあるため、同重量で未達セットの回数を伸ばす`
+
+      return `- ${master.name}: ${recommendedSets.map((set) => formatSet(set)).join(', ')}（前回: ${latestLog.date} / ${reason}）`
+    })
+    .filter(Boolean)
+
+  return lines.length > 0
+    ? `ルールベース推奨セット（ダブルプログレッション: ${DEFAULT_PROGRESSION_MIN_REPS}-${DEFAULT_PROGRESSION_MAX_REPS}回、重量更新幅 ${DEFAULT_WEIGHT_INCREMENT_KG}kg）\n${lines.join('\n')}`
+    : 'ルールベース推奨セット\n- 前回記録のあるウェイト種目がないため、AIが履歴とプロフィールから控えめに設定してください。'
+}
+
 export function formatAiPlanContextSummary(
   logs: WorkoutLog[],
   exerciseMasters: ExerciseMaster[],
@@ -722,6 +775,7 @@ export function formatAiPlanContextSummary(
     formatRecommendedBodyPartSummary(logs, exerciseMasters, structuredProfile),
     formatRecommendedExerciseCandidates(logs, exerciseMasters, structuredProfile, undefined, stagnationInfos),
     formatBodyPartPrioritySummary(logs, exerciseMasters, structuredProfile),
+    formatProgressionRecommendationSummary(logs, exerciseMasters),
     formatStagnationSummary(stagnationInfos),
   ].join('\n\n')
 }
@@ -750,8 +804,10 @@ export function buildPrompt(
 7. 「推奨部位の種目候補」がある場合は、その中から優先して種目を選んでください。最近やっていない種目や、停滞打破のために刺激を変えやすい候補を優先してください
 8. 同じ種目が連続採用中の場合は固定化を避け、補助種目では別カテゴリの候補を1つ混ぜてください
 9. 「今日の優先候補部位」がある場合は、上位1〜2部位を補助候補としてプランに反映してください。ただし「今日の状態・リクエスト」で明示された希望がある場合はその希望を優先してください
-10. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
-11. 有酸素運動を提案する場合は、setsは1件にし、weightとrepsを0、durationに分数、distanceに距離km（任意）を入れてください
+10. 「ルールベース推奨セット」がある種目の重量・回数は原則として採用してください。停滞、ディロード、痛み、ユーザーの明示希望がある場合のみ例外を許可し、理由に明記してください
+11. なぜこのプランになったかをrationaleに簡潔に説明してください
+12. 回答は必ず以下のJSON形式で返してください（JSON以外のテキストは含めないでください）
+13. 有酸素運動を提案する場合は、setsは1件にし、weightとrepsを0、durationに分数、distanceに距離km（任意）を入れてください
 
 {
   "exercises": [
@@ -762,7 +818,8 @@ export function buildPrompt(
       ]
     }
   ],
-  "advice": "今日のトレーニングに関するアドバイス（任意）"
+  "advice": "今日のトレーニングに関するアドバイス（任意）",
+  "rationale": "このプランにした理由。推奨部位、前回記録、ルールベース推奨、例外判断を簡潔に説明"
 }`
 
   const profileSection = profile
@@ -840,6 +897,7 @@ export function parseGeneratedPlan(text: string): GeneratedPlan {
         })),
       })),
       advice: parsed.advice || undefined,
+      rationale: parsed.rationale || undefined,
     }
   } catch (e) {
     throw new Error(`JSONのパースに失敗しました: ${e instanceof Error ? e.message : String(e)}`)

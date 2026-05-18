@@ -64,6 +64,9 @@ function formatConversationContext(messages: ChatMessage[]): string {
           }).join(', ')
           return `- ${exercise.name}: ${sets}`
         }))
+        if (message.plan.rationale) {
+          lines.push(`理由: ${message.plan.rationale}`)
+        }
       }
       return lines.join('\n')
     })
@@ -400,6 +403,12 @@ export function PlanCreatePage() {
                         )
                       })}
                     </ul>
+                    {message.plan.rationale && (
+                      <div className="mt-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900">
+                        <div className="font-medium mb-1">このプランにした理由</div>
+                        <p className="whitespace-pre-wrap">{message.plan.rationale}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
